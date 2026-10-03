@@ -1965,7 +1965,7 @@ function renderFarmerProfile() {
     </div>
 
     <div class="px-4 md:px-6 mt-6">
-      <h3 class="font-extrabold mb-3 flex items-center gap-2">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
+      <h3 class="font-extrabold mb-3 flex items-center gap-2 text-white drop-shadow-md">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
       ${card(`
         <div class="grid grid-cols-3 gap-2" id="lang-options">
           ${['English', 'हिंदी', 'मराठी'].map((l) => `<button data-lang="${l}" class="lang-btn text-sm font-bold py-2.5 rounded-xl border ${st.language === l ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}">${l}</button>`).join('')}
@@ -2457,7 +2457,7 @@ function renderFpoOperatorProfile() {
     </div>
 
     <div class="px-4 md:px-6 mt-6">
-      <h3 class="font-extrabold mb-3 flex items-center gap-2">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
+      <h3 class="font-extrabold mb-3 flex items-center gap-2 text-white drop-shadow-md">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
       ${card(`
         <div class="grid grid-cols-3 gap-2">
           ${['English', 'हिंदी', 'मराठी'].map((l) => `<button data-lang="${l}" class="lang-btn text-sm font-bold py-2.5 rounded-xl border ${st.language === l ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}">${l}</button>`).join('')}
@@ -2551,7 +2551,7 @@ function renderBuyerProfile() {
     </div>
 
     <div class="px-4 md:px-6 mt-6">
-      <h3 class="font-extrabold mb-3 flex items-center gap-2">${icon('shield', 'w-4 h-4')}${t('Business Verification')}</h3>
+      <h3 class="font-extrabold mb-3 flex items-center gap-2 text-white drop-shadow-md">${icon('shield', 'w-4 h-4')}${t('Business Verification')}</h3>
       ${card(matched ? `
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary">${icon('badgeCheck', 'w-5 h-5')}</div>
@@ -2572,7 +2572,7 @@ function renderBuyerProfile() {
     </div>
 
     <div class="px-4 md:px-6 mt-6">
-      <h3 class="font-extrabold mb-3 flex items-center gap-2">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
+      <h3 class="font-extrabold mb-3 flex items-center gap-2 text-white drop-shadow-md">${icon('languages', 'w-4 h-4')}${t('Language')}</h3>
       ${card(`
         <div class="grid grid-cols-3 gap-2">
           ${['English', 'हिंदी', 'मराठी'].map((l) => `<button data-lang="${l}" class="lang-btn text-sm font-bold py-2.5 rounded-xl border ${st.language === l ? 'bg-primary text-primary-foreground border-primary' : 'border-border'}">${l}</button>`).join('')}

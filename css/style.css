@@ -183,7 +183,8 @@ a.card:hover, .card-hover:hover {
   transition: all .18s ease;
 }
 .role-card span.font-display { color: rgba(255,255,255,0.95); }
-.role-card span.text-\[10px\] { color: rgba(255,255,255,0.75) !important; }
+.role-card span.text-\[10px\],
+.role-card span.text-\[9px\] { color: rgba(255,255,255,0.8) !important; }
 .role-card[data-active="true"] {
   border-color: hsl(142 60% 65%);
   background: rgba(30,90,50,0.55);
