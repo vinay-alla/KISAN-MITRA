@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kisan Mitra</title>
+<meta name="description" content="Kisan Mitra — market intelligence, verified buyer matching and net-realisation advisor that helps farmers decide when, where and to whom to sell." />
+<link rel="manifest" href="./manifest.json" />
+<meta name="theme-color" content="#14532d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="./assets/icon-192.png" />
+<link rel="icon" type="image/png" href="./assets/logo-64.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-32.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Nunito', 'sans-serif'], display: ['"Baloo 2"', 'Nunito', 'sans-serif'] },
+        colors: {
+          background: 'hsl(44 32% 96%)',
+          foreground: 'hsl(28 30% 14%)',
+          card: 'hsl(42 38% 98%)',
+          primary: { DEFAULT: 'hsl(142 52% 34%)', foreground: 'hsl(0 0% 100%)', light: 'hsl(142 48% 91%)', dark: 'hsl(142 55% 22%)' },
+          secondary: { DEFAULT: 'hsl(28 40% 40%)', foreground: 'hsl(0 0% 100%)', light: 'hsl(30 35% 92%)' },
+          accent: { DEFAULT: 'hsl(38 92% 54%)', foreground: 'hsl(28 40% 14%)', light: 'hsl(40 90% 92%)' },
+          sky: { DEFAULT: 'hsl(199 70% 46%)', light: 'hsl(199 70% 93%)' },
+          muted: { DEFAULT: 'hsl(43 24% 90%)', foreground: 'hsl(30 15% 42%)' },
+          destructive: { DEFAULT: 'hsl(3 68% 48%)', foreground: 'hsl(0 0% 100%)' },
+          border: 'hsl(32 22% 85%)',
+        },
+        boxShadow: {
+          card: '0 1px 2px rgba(40,30,15,0.06), 0 1px 3px rgba(40,30,15,0.05)',
+          soft: '0 8px 24px -8px rgba(40,60,30,0.18)',
+          lift: '0 14px 32px -12px rgba(30,60,30,0.28)',
+        },
+        borderRadius: { xl2: '1.25rem', xl3: '1.75rem' },
+      },
+    },
+  };
+</script>
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body class="bg-background text-foreground font-sans antialiased">
+
+  <header id="app-header" class="sticky top-0 z-40 bg-card/95 backdrop-blur border-b border-border" style="box-shadow: 0 8px 24px -14px rgba(30,25,10,0.18)"></header>
+
+  <main id="app-main" class="max-w-5xl mx-auto pb-24 md:pb-10 min-h-[70vh]"></main>
+
+  <nav id="bottom-nav" class="fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur border-t border-border md:hidden" style="box-shadow: 0 -8px 24px -12px rgba(30,25,10,0.15)"></nav>
+
+  <div id="menu-overlay" class="hidden fixed inset-0 z-50"></div>
+  <div id="toast-root" class="fixed bottom-24 md:bottom-6 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+  <div id="modal-root"></div>
+
+  <script type="module" src="./js/app.js"></script>
+  <script>
+    // Low-connectivity support: cache the app shell so the UI keeps working on flaky
+    // rural networks instead of failing to load entirely.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

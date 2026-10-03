@@ -1,0 +1,203 @@
+// Minimal i18n: translate common UI chrome (nav, headings, buttons) by looking up the
+// current store language. Falls back to the original English string whenever a key is
+// missing, so untranslated copy never breaks — it just stays in English.
+import { store } from './store.js';
+
+const LANG_CODE = { English: 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
+
+const DICT = {
+  // nav
+  'Home': { hi: 'होम', mr: 'मुख्यपृष्ठ' },
+  'Market': { hi: 'बाज़ार', mr: 'बाजार' },
+  'My Lots': { hi: 'मेरे लॉट', mr: 'माझे लॉट' },
+  'Orders': { hi: 'ऑर्डर', mr: 'ऑर्डर' },
+  'Profile': { hi: 'प्रोफ़ाइल', mr: 'प्रोफाइल' },
+  'Browse Lots': { hi: 'लॉट ब्राउज़ करें', mr: 'लॉट ब्राउझ करा' },
+  'My Offers': { hi: 'मेरे ऑफ़र', mr: 'माझे ऑफर' },
+  'Verified Buyers': { hi: 'सत्यापित खरीदार', mr: 'सत्यापित खरेदीदार' },
+  'FPO Aggregation': { hi: 'एफपीओ एकत्रीकरण', mr: 'एफपीओ एकत्रीकरण' },
+  'Quality Grading': { hi: 'गुणवत्ता ग्रेडिंग', mr: 'गुणवत्ता ग्रेडिंग' },
+  'AI Assistant': { hi: 'एआई सहायक', mr: 'एआय सहाय्यक' },
+  'Verified Farmers & FPOs': { hi: 'सत्यापित किसान और एफपीओ', mr: 'सत्यापित शेतकरी आणि एफपीओ' },
+  'Transport & Storage': { hi: 'परिवहन और भंडारण', mr: 'वाहतूक आणि साठवण' },
+  'Weather Forecast': { hi: 'मौसम पूर्वानुमान', mr: 'हवामान अंदाज' },
+  'Transaction History': { hi: 'लेन-देन इतिहास', mr: 'व्यवहार इतिहास' },
+
+  // page headings + subtitles (sectionHead)
+  'Live temperature, rainfall and farming-specific weather alerts': { hi: 'लाइव तापमान, वर्षा और खेती से जुड़े मौसम अलर्ट', mr: 'थेट तापमान, पाऊस आणि शेतीशी संबंधित हवामान सूचना' },
+  'Every lot, offer, order and payment in one digital record': { hi: 'हर लॉट, ऑफ़र, ऑर्डर और भुगतान एक डिजिटल रिकॉर्ड में', mr: 'प्रत्येक लॉट, ऑफर, ऑर्डर आणि पेमेंट एका डिजिटल नोंदीत' },
+  'Market Intelligence': { hi: 'बाज़ार जानकारी', mr: 'बाजार माहिती' },
+  'Real-time prices, AI forecasts &amp; the best time to sell': { hi: 'रीयल-टाइम कीमतें, एआई पूर्वानुमान और बेचने का सबसे अच्छा समय', mr: 'रिअल-टाइम किंमती, एआय अंदाज आणि विकण्याची योग्य वेळ' },
+  'Manage your produce lots and sale recommendations': { hi: 'अपने उपज लॉट और बिक्री सिफारिशें प्रबंधित करें', mr: 'तुमचे उत्पादन लॉट आणि विक्री शिफारसी व्यवस्थापित करा' },
+  'Track offers from acceptance to payment': { hi: 'स्वीकृति से भुगतान तक ऑफ़र ट्रैक करें', mr: 'स्वीकृतीपासून पेमेंटपर्यंत ऑफर ट्रॅक करा' },
+  'Reliable buyers matched to your crops, with trust scores': { hi: 'भरोसे स्कोर के साथ आपकी फ़सलों से मेल खाते विश्वसनीय खरीदार', mr: 'विश्वास गुणांसह तुमच्या पिकांशी जुळणारे विश्वासार्ह खरेदीदार' },
+  'Pool your lot with nearby farmers for stronger bargaining power': { hi: 'बेहतर सौदेबाज़ी के लिए अपने लॉट को पास के किसानों के साथ जोड़ें', mr: 'अधिक सौदेबाजी शक्तीसाठी तुमचा लॉट जवळच्या शेतकऱ्यांसोबत एकत्र करा' },
+  'AI-powered produce grading to match buyer specifications': { hi: 'खरीदार की आवश्यकताओं से मेल खाने के लिए एआई-संचालित उपज ग्रेडिंग', mr: 'खरेदीदाराच्या गरजांशी जुळण्यासाठी एआय-आधारित उत्पादन ग्रेडिंग' },
+  'Your account, language &amp; voice preferences': { hi: 'आपका खाता, भाषा और आवाज़ प्राथमिकताएँ', mr: 'तुमचे खाते, भाषा आणि आवाज प्राधान्ये' },
+  'Produce lots available from verified farmers &amp; FPOs': { hi: 'सत्यापित किसानों और एफपीओ से उपलब्ध उपज लॉट', mr: 'सत्यापित शेतकरी आणि एफपीओकडून उपलब्ध उत्पादन लॉट' },
+  'Track offers you have sent to farmers &amp; FPOs': { hi: 'किसानों और एफपीओ को भेजे गए ऑफ़र ट्रैक करें', mr: 'शेतकरी आणि एफपीओना पाठवलेले ऑफर ट्रॅक करा' },
+  'Reliable sources matched to what you source': { hi: 'आपकी ज़रूरत से मेल खाते विश्वसनीय स्रोत', mr: 'तुम्हाला हव्या असलेल्या गोष्टींशी जुळणारे विश्वासार्ह स्रोत' },
+  'Arrange pickup and storage to protect your produce and cut post-harvest loss': { hi: 'अपनी उपज की सुरक्षा और नुकसान कम करने के लिए पिकअप और भंडारण की व्यवस्था करें', mr: 'तुमचे उत्पादन सुरक्षित ठेवण्यासाठी आणि नुकसान कमी करण्यासाठी पिकअप आणि साठवणुकीची व्यवस्था करा' },
+
+  // home
+  'Best Option': { hi: 'सर्वश्रेष्ठ विकल्प', mr: 'सर्वोत्तम पर्याय' },
+  'Tap &amp; Speak — or type your query': { hi: 'टैप करें और बोलें — या अपना सवाल टाइप करें', mr: 'टॅप करा आणि बोला — किंवा तुमचा प्रश्न टाइप करा' },
+  '🌱 Your Produce': { hi: '🌱 आपकी उपज', mr: '🌱 तुमचे उत्पादन' },
+  'Edit': { hi: 'संपादित करें', mr: 'संपादित करा' },
+  "TODAY'S RECOMMENDATION": { hi: 'आज की सिफारिश', mr: 'आजची शिफारस' },
+  'SELL NOW': { hi: 'अभी बेचें', mr: 'आता विका' },
+  'OFFER ACCEPTED': { hi: 'ऑफ़र स्वीकृत', mr: 'ऑफर स्वीकारला' },
+  'Expected Net Return': { hi: 'अपेक्षित शुद्ध रिटर्न', mr: 'अपेक्षित निव्वळ परतावा' },
+  '(After all costs)': { hi: '(सभी लागतों के बाद)', mr: '(सर्व खर्चानंतर)' },
+  'Why this option?': { hi: 'यह विकल्प क्यों?', mr: 'हा पर्याय का?' },
+  'Compare Other Options': { hi: 'अन्य विकल्प देखें', mr: 'इतर पर्याय पहा' },
+  'Active Lots': { hi: 'सक्रिय लॉट', mr: 'सक्रिय लॉट' },
+  'Avg. Gain (FPO)': { hi: 'औसत लाभ (एफपीओ)', mr: 'सरासरी नफा (एफपीओ)' },
+  '🔔 Market Alerts': { hi: '🔔 बाज़ार अलर्ट', mr: '🔔 बाजार सूचना' },
+  'View Market': { hi: 'बाज़ार देखें', mr: 'बाजार पहा' },
+  'Recommended Lots': { hi: 'अनुशंसित लॉट', mr: 'शिफारस केलेले लॉट' },
+  'Browse All': { hi: 'सभी देखें', mr: 'सर्व पहा' },
+  'Lots Available': { hi: 'उपलब्ध लॉट', mr: 'उपलब्ध लॉट' },
+  'Offers Sent': { hi: 'भेजे गए ऑफ़र', mr: 'पाठवलेले ऑफर' },
+  'Your Rating': { hi: 'आपकी रेटिंग', mr: 'तुमचे रेटिंग' },
+
+  // login
+  'Market intelligence &amp; buyer matching for better price realisation': { hi: 'बेहतर कीमत के लिए बाज़ार जानकारी और खरीदार मिलान', mr: 'चांगल्या किमतीसाठी बाजार माहिती आणि खरेदीदार जुळवणी' },
+  "I'm a Farmer": { hi: 'मैं किसान हूँ', mr: 'मी शेतकरी आहे' },
+  'Sell my produce': { hi: 'अपनी उपज बेचें', mr: 'माझे उत्पादन विका' },
+  "I'm a Buyer": { hi: 'मैं खरीदार हूँ', mr: 'मी खरेदीदार आहे' },
+  'Source produce': { hi: 'उपज खरीदें', mr: 'उत्पादन खरेदी करा' },
+  'Full Name': { hi: 'पूरा नाम', mr: 'पूर्ण नाव' },
+  'Phone Number': { hi: 'फ़ोन नंबर', mr: 'फोन नंबर' },
+  'Village / District': { hi: 'गाँव / ज़िला', mr: 'गाव / जिल्हा' },
+  'Location': { hi: 'स्थान', mr: 'स्थान' },
+  'Company / Firm': { hi: 'कंपनी / फ़र्म', mr: 'कंपनी / फर्म' },
+  'Use my current location': { hi: 'मेरी वर्तमान स्थिति का उपयोग करें', mr: 'माझे सध्याचे स्थान वापरा' },
+  'Use my current location to sort by distance': { hi: 'दूरी के अनुसार क्रमबद्ध करने के लिए मेरी वर्तमान स्थिति का उपयोग करें', mr: 'अंतरानुसार क्रमवारीसाठी माझे सध्याचे स्थान वापरा' },
+  'Continue': { hi: 'जारी रखें', mr: 'सुरू ठेवा' },
+  'Prototype sign-in — account data stays in this browser only. Please don’t use a real password.': { hi: 'प्रोटोटाइप साइन-इन — खाता डेटा केवल इसी ब्राउज़र में रहता है। कृपया असली पासवर्ड का उपयोग न करें।', mr: 'प्रोटोटाइप साइन-इन — खात्याचा डेटा फक्त याच ब्राउझरमध्ये राहतो. कृपया खरा पासवर्ड वापरू नका.' },
+  'Create Account': { hi: 'खाता बनाएँ', mr: 'खाते तयार करा' },
+  'Log In': { hi: 'लॉग इन करें', mr: 'लॉग इन करा' },
+  'Password': { hi: 'पासवर्ड', mr: 'पासवर्ड' },
+  'Confirm Password': { hi: 'पासवर्ड की पुष्टि करें', mr: 'पासवर्डची पुष्टी करा' },
+  'Create my account': { hi: 'मेरा खाता बनाएँ', mr: 'माझे खाते तयार करा' },
+
+  // profile
+  'Language': { hi: 'भाषा', mr: 'भाषा' },
+  'Tap &amp; Speak (Voice Queries)': { hi: 'टैप करें और बोलें (आवाज़ सवाल)', mr: 'टॅप करा आणि बोला (आवाज प्रश्न)' },
+  'Log Out': { hi: 'लॉग आउट', mr: 'लॉग आउट' },
+  'Lots Listed': { hi: 'सूचीबद्ध लॉट', mr: 'सूचीबद्ध लॉट' },
+  'Completed Sales': { hi: 'पूर्ण बिक्री', mr: 'पूर्ण विक्री' },
+  'Avg. FPO Gain': { hi: 'औसत एफपीओ लाभ', mr: 'सरासरी एफपीओ नफा' },
+  'Active member': { hi: 'सक्रिय सदस्य', mr: 'सक्रिय सदस्य' },
+  'Not a member': { hi: 'सदस्य नहीं', mr: 'सदस्य नाही' },
+  'Manage': { hi: 'प्रबंधित करें', mr: 'व्यवस्थापित करा' },
+  'Verified': { hi: 'सत्यापित', mr: 'सत्यापित' },
+  'Accepted': { hi: 'स्वीकृत', mr: 'स्वीकारले' },
+
+  // common buttons reused across pages
+  'Accept Offer': { hi: 'ऑफ़र स्वीकार करें', mr: 'ऑफर स्वीकारा' },
+  'Request Quote': { hi: 'कोटेशन माँगें', mr: 'कोटेशन मागवा' },
+  'Make Offer': { hi: 'ऑफ़र करें', mr: 'ऑफर करा' },
+  'View Verification': { hi: 'सत्यापन देखें', mr: 'पडताळणी पहा' },
+  'Cancel Offer': { hi: 'ऑफ़र रद्द करें', mr: 'ऑफर रद्द करा' },
+  'Edit Profile': { hi: 'प्रोफ़ाइल संपादित करें', mr: 'प्रोफाइल संपादित करा' },
+
+  // quality grading compliance factors
+  'Colour Compliance': { hi: 'रंग अनुरूपता', mr: 'रंग अनुरूपता' },
+  'Size Compliance': { hi: 'आकार अनुरूपता', mr: 'आकार अनुरूपता' },
+  'Shape Compliance': { hi: 'आकृति अनुरूपता', mr: 'आकृती अनुरूपता' },
+  'Visible Defect Compliance': { hi: 'दृश्य दोष अनुरूपता', mr: 'दृश्य दोष अनुरूपता' },
+  'Maturity / Ripeness Compliance': { hi: 'परिपक्वता अनुरूपता', mr: 'परिपक्वता अनुरूपता' },
+  'Disease / Pest Damage Compliance': { hi: 'रोग/कीट क्षति अनुरूपता', mr: 'रोग/कीड क्षती अनुरूपता' },
+  'checks passed': { hi: 'जाँचें पास हुईं', mr: 'तपासण्या उत्तीर्ण' },
+  'AI Compliance Breakdown': { hi: 'एआई अनुरूपता विवरण', mr: 'एआय अनुरूपता तपशील' },
+  'This grade qualifies your lot for premium buyers. Attach this result when creating a new lot to speed up buyer matching.': { hi: 'यह ग्रेड आपके लॉट को प्रीमियम खरीदारों के लिए योग्य बनाता है। खरीदार मिलान तेज़ करने के लिए नया लॉट बनाते समय यह परिणाम जोड़ें।', mr: 'हा ग्रेड तुमचा लॉट प्रीमियम खरेदीदारांसाठी पात्र बनवतो. खरेदीदार जुळणी जलद करण्यासाठी नवीन लॉट तयार करताना हा निकाल जोडा.' },
+  'left to cancel': { hi: 'रद्द करने के लिए शेष', mr: 'रद्द करण्यासाठी शिल्लक' },
+  'View Payment Receipt': { hi: 'भुगतान रसीद देखें', mr: 'पेमेंट पावती पहा' },
+  'Payment Receipt': { hi: 'भुगतान रसीद', mr: 'पेमेंट पावती' },
+  'Suggested Crops for Next Season': { hi: 'अगले सीज़न के लिए सुझाई गई फ़सलें', mr: 'पुढील हंगामासाठी सुचवलेली पिके' },
+  'Based on your soil type, location and the coming season, with live market context': { hi: 'आपकी मिट्टी, स्थान और आने वाले सीज़न के आधार पर, बाज़ार की जानकारी के साथ', mr: 'तुमची माती, ठिकाण आणि येणारा हंगाम यावर आधारित, बाजार माहितीसह' },
+  'Best Match for Your Soil': { hi: 'आपकी मिट्टी के लिए सर्वश्रेष्ठ', mr: 'तुमच्या मातीसाठी सर्वोत्तम' },
+  'Also Suitable': { hi: 'भी उपयुक्त', mr: 'देखील योग्य' },
+  'Current market price': { hi: 'वर्तमान बाज़ार भाव', mr: 'सध्याचा बाजारभाव' },
+  'View market details': { hi: 'बाज़ार विवरण देखें', mr: 'बाजार तपशील पहा' },
+  'Update Location': { hi: 'स्थान अपडेट करें', mr: 'ठिकाण अपडेट करा' },
+  'Next Season': { hi: 'अगला सीज़न', mr: 'पुढील हंगाम' },
+  'Next Season Crops': { hi: 'अगले सीज़न की फ़सलें', mr: 'पुढील हंगामाची पिके' },
+  'Verify the full offer, not just the quoted price': { hi: 'केवल दाम नहीं, पूरे ऑफ़र की जाँच करें', mr: 'फक्त दराची नाही, संपूर्ण ऑफरची पडताळणी करा' },
+  'Create New Lot': { hi: 'नया लॉट बनाएँ', mr: 'नवीन लॉट तयार करा' },
+  'AI Sell-or-Hold Suggestion': { hi: 'एआई बेचें-या-रोकें सुझाव', mr: 'एआय विक्री-की-थांबा सूचना' },
+  'SELL NOW': { hi: 'अभी बेचें', mr: 'आता विका' },
+  'SELL SOON': { hi: 'जल्द बेचें', mr: 'लवकर विका' },
+  'HOLD': { hi: 'रोकें', mr: 'थांबा' },
+
+  // buyer profile
+  'Business Verification': { hi: 'व्यवसाय सत्यापन', mr: 'व्यवसाय पडताळणी' },
+  'Sources': { hi: 'खरीदता है:', mr: 'खरेदी करतो:' },
+  'GSTIN, PAN &amp; business KYC verified': { hi: 'GSTIN, PAN और व्यवसाय KYC सत्यापित', mr: 'GSTIN, PAN आणि व्यवसाय KYC पडताळणी झाली' },
+  'Payment score': { hi: 'भुगतान स्कोर', mr: 'पेमेंट स्कोअर' },
+  'past orders': { hi: 'पिछले ऑर्डर', mr: 'मागील ऑर्डर' },
+  'Business verification pending': { hi: 'व्यवसाय सत्यापन लंबित है', mr: 'व्यवसाय पडताळणी प्रलंबित' },
+  'Verified buyers get priority on farmer offers': { hi: 'सत्यापित खरीदारों को किसानों के ऑफ़र में प्राथमिकता मिलती है', mr: 'सत्यापित खरेदीदारांना शेतकऱ्यांच्या ऑफरमध्ये प्राधान्य मिळते' },
+  'Start': { hi: 'शुरू करें', mr: 'सुरू करा' },
+  'View': { hi: 'देखें', mr: 'पहा' },
+  'Lots Won': { hi: 'जीते गए लॉट', mr: 'जिंकलेले लॉट' },
+  'Qtl Sourced': { hi: 'क्विंटल खरीदे', mr: 'क्विंटल खरेदी' },
+  'Volume/Month': { hi: 'मात्रा/माह', mr: 'प्रमाण/महिना' },
+  'Open for bidding — other buyers may be competing': { hi: 'बोली के लिए खुला — अन्य खरीदार भी होड़ में हो सकते हैं', mr: 'बोलीसाठी खुले — इतर खरेदीदारही स्पर्धेत असू शकतात' },
+  'Place Bid': { hi: 'बोली लगाएँ', mr: 'बोली लावा' },
+  'Live Bids from Buyers': { hi: 'खरीदारों की लाइव बोलियाँ', mr: 'खरेदीदारांच्या थेट बोली' },
+  'Accept This Bid': { hi: 'यह बोली स्वीकारें', mr: 'ही बोली स्वीकारा' },
+  'Best Bid': { hi: 'सर्वश्रेष्ठ बोली', mr: 'सर्वोत्तम बोली' },
+  'Live': { hi: 'लाइव', mr: 'लाइव्ह' },
+  'This lot is listed on Browse Lots — buyers can bid directly. Accept the best bid, or compare AI-recommended options below.': { hi: 'यह लॉट Browse Lots में सूचीबद्ध है — खरीदार सीधे बोली लगा सकते हैं। सबसे अच्छी बोली स्वीकारें, या नीचे एआई-अनुशंसित विकल्पों से तुलना करें।', mr: 'हा लॉट Browse Lots मध्ये सूचीबद्ध आहे — खरेदीदार थेट बोली लावू शकतात. सर्वोत्तम बोली स्वीकारा, किंवा खालील एआय-शिफारस केलेल्या पर्यायांशी तुलना करा.' },
+
+  // FPO operator role
+  'Farmer': { hi: 'किसान', mr: 'शेतकरी' },
+  'Buyer': { hi: 'खरीदार', mr: 'खरेदीदार' },
+  'FPO Operator': { hi: 'एफपीओ संचालक', mr: 'एफपीओ संचालक' },
+  'Pool &amp; sell lots': { hi: 'लॉट जोड़ें और बेचें', mr: 'लॉट एकत्र करा आणि विका' },
+  'FPO Name': { hi: 'एफपीओ का नाम', mr: 'एफपीओ चे नाव' },
+  'Find buyers for pooled lots': { hi: 'पूल किए गए लॉट के लिए खरीदार खोजें', mr: 'एकत्रित लॉटसाठी खरेदीदार शोधा' },
+  'Recently Pooled Lots': { hi: 'हाल ही में जोड़े गए लॉट', mr: 'अलीकडे एकत्रित केलेले लॉट' },
+  'Members & Pooled Lots': { hi: 'सदस्य और पूल किए गए लॉट', mr: 'सदस्य आणि एकत्रित लॉट' },
+  'Every member farmer and what they have contributed to this FPO': { hi: 'हर सदस्य किसान और उसका इस एफपीओ में योगदान', mr: 'प्रत्येक सदस्य शेतकरी आणि त्यांचे या एफपीओ मधील योगदान' },
+  'Total Qtl': { hi: 'कुल क्विंटल', mr: 'एकूण क्विंटल' },
+  'Active Contributors': { hi: 'सक्रिय योगदानकर्ता', mr: 'सक्रिय योगदानकर्ते' },
+  'Qtl Pooled Now': { hi: 'अभी पूल किए गए क्विंटल', mr: 'सध्या एकत्रित क्विंटल' },
+  'Qtl Pooled': { hi: 'पूल किए गए क्विंटल', mr: 'एकत्रित क्विंटल' },
+  'Your FPO account, language &amp; voice preferences': { hi: 'आपका एफपीओ खाता, भाषा और वॉइस सेटिंग्स', mr: 'तुमचे एफपीओ खाते, भाषा आणि व्हॉइस सेटिंग्ज' },
+  'Save': { hi: 'सहेजें', mr: 'जतन करा' },
+  'Cancel': { hi: 'रद्द करें', mr: 'रद्द करा' },
+
+  // AI assistant
+  'Online · Voice-first, local languages': { hi: 'ऑनलाइन · वॉइस-फर्स्ट, स्थानीय भाषाएँ', mr: 'ऑनलाइन · व्हॉइस-फर्स्ट, स्थानिक भाषा' },
+  'Suggested questions:': { hi: 'सुझाए गए प्रश्न:', mr: 'सुचवलेले प्रश्न:' },
+  'Ask when, where, or whom to sell to...': { hi: 'पूछें कब, कहाँ, या किसे बेचें...', mr: 'विचारा कधी, कुठे, किंवा कोणाला विकायचे...' },
+  'Ask which farmers have your crop, prices, or your offer status...': { hi: 'पूछें किस किसान के पास आपकी फ़सल है, कीमतें, या आपके ऑफ़र की स्थिति...', mr: 'विचारा कोणत्या शेतकऱ्याकडे तुमचे पीक आहे, किंमती, किंवा तुमच्या ऑफरची स्थिती...' },
+  'When should I sell my tomato lot?': { hi: 'मुझे अपना टमाटर लॉट कब बेचना चाहिए?', mr: 'मी माझा टोमॅटो लॉट कधी विकावा?' },
+  'Who are the verified buyers near me?': { hi: 'मेरे पास सत्यापित खरीदार कौन हैं?', mr: 'माझ्याजवळ सत्यापित खरेदीदार कोण आहेत?' },
+  'What is my expected net return?': { hi: 'मेरा अपेक्षित शुद्ध रिटर्न क्या है?', mr: 'माझा अपेक्षित निव्वळ परतावा किती आहे?' },
+  'Should I join the FPO combined lot?': { hi: 'क्या मुझे एफपीओ संयुक्त लॉट में शामिल होना चाहिए?', mr: 'मी एफपीओ संयुक्त लॉटमध्ये सामील व्हावे का?' },
+  'Which verified farmers have tomato available?': { hi: 'किस सत्यापित किसान के पास टमाटर उपलब्ध है?', mr: 'कोणत्या सत्यापित शेतकऱ्याकडे टोमॅटो उपलब्ध आहे?' },
+  "What are today's mandi prices?": { hi: 'आज के मंडी भाव क्या हैं?', mr: 'आजचे बाजार भाव काय आहेत?' },
+  'How do I check my offer status?': { hi: 'मैं अपने ऑफ़र की स्थिति कैसे देखूँ?', mr: 'मी माझ्या ऑफरची स्थिती कशी तपासू?' },
+  'Which FPOs can supply bulk volume?': { hi: 'कौन से एफपीओ थोक मात्रा दे सकते हैं?', mr: 'कोणते एफपीओ मोठ्या प्रमाणात पुरवठा करू शकतात?' },
+};
+
+export function currentLangCode() {
+  return LANG_CODE[store.get().language] || 'en';
+}
+
+export function t(str) {
+  const code = currentLangCode();
+  if (code === 'en' || !str) return str;
+  const entry = DICT[str];
+  return (entry && entry[code]) || str;
+}
+
+const GREETING = { en: 'Namaste', hi: 'नमस्ते', mr: 'नमस्कार' };
+export function greet(name) {
+  return `${GREETING[currentLangCode()]}, ${name}!`;
+}

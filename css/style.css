@@ -1,0 +1,230 @@
+:root { color-scheme: light; }
+
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Deliberately NOT scroll-behavior: smooth on <html> — with fixed/blurred backdrop
+   layers on every page, letting every wheel/touch scroll tick re-trigger a CSS-smooth
+   animation fights the browser's native scroll and reads as janky/broken scrolling. */
+
+/* Real field photo as the app's ambient backdrop: a fixed, blurred, dimmed copy sits
+   behind every page so the whole interface feels grounded in the same place, while a
+   warm translucent tint keeps card text fully legible on top of it. */
+body { position: relative; background-color: hsl(40 34% 93%); }
+body::before {
+  content: "";
+  position: fixed;
+  inset: -6%;
+  background-image: url("../assets/field-hero.avif");
+  background-size: cover;
+  background-position: center 92%;
+  filter: blur(22px) saturate(0.92) brightness(1.02);
+  transform: scale(1.08);
+  z-index: -2;
+  pointer-events: none;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: hsl(40 40% 95% / 0.82);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ---------- headings / display font ---------- */
+h1, h2, h3, .font-display { font-family: "Baloo 2", "Nunito", sans-serif; letter-spacing: -0.01em; }
+
+/* ---------- focus ---------- */
+:focus-visible { outline: 2px solid hsl(142 52% 34%); outline-offset: 2px; border-radius: 6px; }
+
+/* ---------- tactile press feedback ---------- */
+button, a { transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease, background-color .15s ease, filter .15s ease; }
+button:active, a:active { transform: scale(0.97); }
+button:hover, a:hover { filter: brightness(1.04); }
+button:active:hover, a:active:hover { filter: brightness(0.97); }
+
+/* Every solid-green button/link gets a subtle diagonal gradient + lift instead of a flat
+   fill — scoped to <button>/<a> so icon-circle badges (plain <div>/<span> using bg-primary)
+   are untouched. This is the single biggest "looks premium" lever in the whole app. */
+button.bg-primary, a.bg-primary {
+  background-image: linear-gradient(135deg, hsl(142 55% 40%) 0%, hsl(142 58% 30%) 100%);
+  box-shadow: 0 6px 16px -6px rgba(15, 60, 30, 0.45), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+button.bg-primary:hover, a.bg-primary:hover {
+  box-shadow: 0 8px 20px -6px rgba(15, 60, 30, 0.55), inset 0 1px 0 rgba(255,255,255,0.16);
+}
+button.bg-destructive, a.bg-destructive {
+  background-image: linear-gradient(135deg, hsl(3 72% 54%) 0%, hsl(3 68% 42%) 100%);
+}
+
+/* Gradient "hero number" text — used sparingly on the handful of headline figures (net
+   return, live temperature, big prices) that should draw the eye first. */
+.text-gradient-primary {
+  background-image: linear-gradient(135deg, hsl(142 62% 38%), hsl(142 68% 26%));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.text-gradient-gold {
+  background-image: linear-gradient(135deg, hsl(38 95% 48%), hsl(28 88% 42%));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ---------- full-page field photo (fixed backdrop behind an entire page's content) ----------
+   IMPORTANT: only ever place this as a SIBLING before a page's `page-enter` wrapper, never
+   inside it — `.page-enter`'s fade-in animation leaves a lingering `transform: translateY(0)`
+   on its element after it finishes, which (per spec) turns it into a containing block for any
+   `position: fixed` descendant, silently breaking full-viewport coverage on scroll. */
+.page-photo-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url("../assets/field-hero.avif");
+  background-size: cover;
+  background-position: center bottom;
+}
+.page-photo-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Deliberately near-flat (not a dramatic top/bottom gradient): this background stays fixed
+     while a long page scrolls over it, so whatever gradient band lines up with a given piece
+     of text changes as the user scrolls. A narrow, consistently-dark range keeps white text
+     legible everywhere instead of only at one scroll position. */
+  background: linear-gradient(180deg, rgba(8,14,6,0.6) 0%, rgba(8,14,6,0.48) 50%, rgba(8,14,6,0.6) 100%);
+}
+.role-avatar {
+  width: 2.75rem; height: 2.75rem;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid hsl(42 38% 98%);
+  box-shadow: 0 2px 8px rgba(20,30,15,0.25);
+}
+
+/* ---------- cards ---------- */
+.card {
+  background: hsl(42 38% 98%);
+  border: 1px solid hsl(32 22% 88%);
+  border-radius: 1.1rem;
+  box-shadow: 0 2px 6px -2px rgba(40,30,15,0.10), 0 1px 2px rgba(40,30,15,0.06);
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+a.card:hover, .card-hover:hover {
+  box-shadow: 0 14px 30px -14px rgba(30,60,30,0.35);
+  transform: translateY(-2px);
+  border-color: hsl(142 40% 70%);
+}
+
+.card-feature {
+  position: relative;
+  border-radius: 1.4rem;
+  border: 1px solid hsl(142 40% 72%);
+  background: linear-gradient(165deg, hsl(142 48% 95%) 0%, hsl(42 38% 98%) 55%);
+  box-shadow: 0 18px 40px -18px rgba(20,80,35,0.45), 0 0 0 1px rgba(34,140,60,0.06);
+  overflow: hidden;
+}
+.card-feature::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(hsl(142 40% 80% / 0.5) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+  mask-image: linear-gradient(120deg, black, transparent 55%);
+  pointer-events: none;
+}
+
+/* ---------- ribbon / featured badge ---------- */
+.ribbon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  padding: .3rem .7rem .3rem .6rem;
+  font-weight: 800;
+  font-size: .65rem;
+  letter-spacing: .02em;
+  color: hsl(28 40% 14%);
+  background: linear-gradient(135deg, hsl(38 92% 62%), hsl(38 92% 50%));
+  border-radius: 999px 6px 999px 999px;
+  box-shadow: 0 4px 10px -4px rgba(120,80,0,0.45);
+  overflow: hidden;
+}
+.ribbon::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0; left: -60%;
+  width: 40%;
+  background: linear-gradient(115deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: ribbon-shimmer 3s ease-in-out infinite;
+}
+@keyframes ribbon-shimmer {
+  0% { left: -60%; }
+  50% { left: 130%; }
+  100% { left: 130%; }
+}
+
+/* ---------- progress ---------- */
+.progress-track { background: hsl(43 24% 89%); border-radius: 999px; overflow: hidden; }
+.progress-fill { background: linear-gradient(90deg, hsl(142 55% 40%), hsl(142 52% 34%)); border-radius: 999px; transition: width .6s ease; }
+
+/* ---------- scroll areas ---------- */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(142 30% 78%); border-radius: 999px; border: 2px solid hsl(44 32% 96%); }
+
+/* ---------- role select cards (login) ---------- */
+.role-card {
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 1.1rem;
+  background: rgba(20,30,20,0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: all .18s ease;
+}
+.role-card span.font-display { color: rgba(255,255,255,0.95); }
+.role-card span.text-\[10px\] { color: rgba(255,255,255,0.75) !important; }
+.role-card[data-active="true"] {
+  border-color: hsl(142 60% 65%);
+  background: rgba(30,90,50,0.55);
+  box-shadow: 0 10px 24px -12px rgba(10,30,15,0.5);
+}
+
+/* ---------- animations ---------- */
+@keyframes fade-slide-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: fade-slide-in .25s ease both; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast { animation: toast-in .2s ease both; }
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(34,120,60,.45); }
+  100% { box-shadow: 0 0 0 12px rgba(34,120,60,0); }
+}
+.pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
+.mic-btn { animation: pulse-ring 1.8s ease-out infinite; }
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(3deg); }
+}
+.sway { transform-origin: bottom center; animation: sway 3.5s ease-in-out infinite; }
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.float { animation: float-y 4s ease-in-out infinite; }
+
+.chat-bubble-in { animation: fade-slide-in .2s ease both; }
+
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+input[type="range"] { accent-color: hsl(142 52% 34%); }

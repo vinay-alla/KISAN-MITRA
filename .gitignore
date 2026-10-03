@@ -1,0 +1,20 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python (devserver.py)
+__pycache__/
+*.pyc
+
+# Node (if tooling is added later)
+node_modules/
+
+# Secrets — the data.gov.in key must come from the environment, never the repo
+.env
+.env.*
+
+# Local tooling / logs
+.claude/
+*.log
