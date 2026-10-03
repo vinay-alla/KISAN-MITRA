@@ -1,103 +1,331 @@
-# Kisan Mitra
+<div align="center">
 
-**Strengthening market linkages and price discovery for farmers** — a working prototype for
-Smart India Hackathon 2026, Problem Statement **26132**, by **The 6 Innovators**.
+<img src="docs/banner.jpg" alt="Kisan Mitra — market intelligence for farmers, buyers and FPOs" width="100%" />
 
-Kisan Mitra helps a farmer decide *when, where and to whom* to sell — then carries that
-decision through to delivery and payment. It also gives buyers and FPO (Farmer Producer
-Organisation) operators their own views of the same marketplace.
+<br/>
 
-> **This is a prototype.** All mandi prices, buyers, offers, orders and verification records are
-> illustrative mock data. The "AI" features (price forecast, sell-or-hold, quality grading) are
-> rule-based or simulated — there is no trained model behind them.
+![Status](https://img.shields.io/badge/status-working%20prototype-F59E0B?style=for-the-badge)
+![SIH 2026](https://img.shields.io/badge/SIH%202026-PS%2026132-166534?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 
-## Features
+![JavaScript](https://img.shields.io/badge/vanilla%20JS-ES%20modules-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![PWA](https://img.shields.io/badge/PWA-offline%20shell-5A0FC8?style=flat-square&logo=pwa&logoColor=white)
+![Languages](https://img.shields.io/badge/UI-English%20%C2%B7%20%E0%A4%B9%E0%A4%BF%E0%A4%82%E0%A4%A6%E0%A5%80%20%C2%B7%20%E0%A4%AE%E0%A4%B0%E0%A4%BE%E0%A4%A0%E0%A5%80-16A34A?style=flat-square)
+![Roles](https://img.shields.io/badge/roles-farmer%20%C2%B7%20buyer%20%C2%B7%20FPO%20operator-0F766E?style=flat-square)
 
-**Farmer**
-- **Market intelligence** — mandi-wise prices, 7-day trend, price forecast and an explainable
-  **Sell / Sell soon / Hold** suggestion with a confidence score (trend momentum + forecast + crop perishability).
-- **Net-realisation comparison** — every sell option is shown as base price − transport − commission − storage, so the best *net* option wins, not the best headline price.
-- **Lots & reverse bidding** — list a lot (with photo and location), receive live bids from buyers, accept one.
-- **24-hour cancel window** on an accepted offer, **5-stage order tracking**, and a printable **payment receipt**.
-- **AI visual pre-grading** — upload a produce photo and get a 6-check compliance breakdown (colour, size, shape, visible defects, maturity, disease/pest damage) and an overall grade.
-- **Buyer verification** — KYC checklist (business KYC, GSTIN, PAN, FSSAI, bank account, address, capacity) plus payment score, dispute history and fulfilment rate; processor offers get a full-offer check, not just the quoted price.
-- **FPO aggregation**, **transport & storage** booking (sorted by live distance from your GPS position), **weather forecast**, **transaction history**, **grievance / dispute flow**.
-- **Next-season crop suggestions** based on your location's soil type and the coming season (Kharif / Rabi / Zaid).
+**A mobile-first marketplace that tells farmers _when_, _where_ and _to whom_ to sell — then carries the decision through to delivery and payment.**
 
-**Buyer** — browse verified lots, make offers, track them, view verified farmers & FPOs, and manage a business profile with their own verification status.
+[Live demo](https://vinay-alla.github.io/KISAN-MITRA/) · [Screenshots](#-screenshots) · [Features](#-features) · [How it works](#-how-the-intelligence-works) · [Architecture](#%EF%B8%8F-architecture) · [Run locally](#-getting-started)
 
-**FPO operator** — member and pooled-lot overview, verified buyers, market view.
+</div>
 
-**Across the app** — English / हिंदी / मराठी, a voice assistant (speech-to-text input and spoken replies), installable PWA with offline app shell, and a prototype disclaimer.
+> **Prototype notice.** Mandi prices, buyers, offers, orders and verification records are illustrative mock data. The "AI" features are rule-based or simulated — there is no trained model behind them. Details in [Known limitations](#%EF%B8%8F-known-limitations).
 
-## Run it locally
+---
 
-Requires Python 3. The app uses ES modules, so it must be served over HTTP — opening
-`index.html` directly from disk will not work.
+## 📖 Overview
 
-```bash
-python devserver.py
-# then open http://127.0.0.1:8800
+Smallholder farmers usually sell right after harvest, under cash pressure, with little view of mandi prices, buyer demand, quality specs, transport or storage. Buyers struggle to source consistent volume from scattered producers, and payment reliability is opaque.
+
+**Kisan Mitra** is a response to Smart India Hackathon 2026 **Problem Statement 26132 — _Strengthening market linkages and price discovery for farmers_**. It gives each of three roles a purpose-built view of the same marketplace:
+
+| Role | What they get |
+|---|---|
+| 🧑‍🌾 **Farmer** | Live price context, an explainable sell-or-hold call, net-return comparison across buyers and mandis, reverse bidding, quality pre-grading, logistics, order tracking and receipts |
+| 🏢 **Buyer** | Browse verified lots, bid on produce, track offers, see verified farmers & FPOs, manage a business profile with its own verification status |
+| 🤝 **FPO operator** | Member and pooled-lot overview, verified buyers, market view |
+
+### At a glance
+
+| | |
+|---|---|
+| **Roles** | 3 (farmer, buyer, FPO operator) with role-based route access |
+| **Screens** | 24 page renderers across 18 routes |
+| **Languages** | English, हिंदी, मराठी — UI, voice input and spoken replies |
+| **Codebase** | ~4,300 lines of JavaScript, no framework, no build step |
+| **Offline** | Installable PWA with a cached app shell |
+| **External services** | Open-Meteo, OpenStreetMap Nominatim, optional data.gov.in mandi feed — each degrades gracefully |
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="33%"><img src="docs/screenshots/login.jpg" width="270" alt="Login with three roles" /><br/><b>One app, three roles</b><br/><sub>Farmer, buyer or FPO operator — sign up or try a demo account</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/home.jpg" width="270" alt="Farmer home" /><br/><b>Today's recommendation</b><br/><sub>Best option and expected net return, with the reasons why</sub></td>
+<td align="center" width="33%"><img src="docs/screenshots/home-hindi.jpg" width="270" alt="Hindi interface" /><br/><b>Fully multilingual</b><br/><sub>The same screen in हिंदी — मराठी is one tap away</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/market.jpg" width="270" alt="Market intelligence" /><br/><b>Market intelligence</b><br/><sub>7-day trend, price forecast and an AI sell-or-hold verdict</sub></td>
+<td align="center"><img src="docs/screenshots/lot-detail.jpg" width="270" alt="Lot detail with live bids" /><br/><b>Bids &amp; net-return options</b><br/><sub>Reverse bidding plus transparent cost breakdowns</sub></td>
+<td align="center"><img src="docs/screenshots/quality.jpg" width="270" alt="AI quality grading" /><br/><b>AI quality pre-grading</b><br/><sub>Six compliance checks from a single photo</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/buyer-verification.jpg" width="270" alt="Buyer verification" /><br/><b>Buyer verification</b><br/><sub>GSTIN, PAN, FSSAI, bank, capacity, payment score</sub></td>
+<td align="center"><img src="docs/screenshots/receipt.jpg" width="270" alt="Payment receipt" /><br/><b>Payment receipt</b><br/><sub>Printable, generated once an order reaches payment</sub></td>
+<td align="center"><img src="docs/screenshots/logistics.jpg" width="270" alt="Transport and storage" /><br/><b>Transport &amp; storage</b><br/><sub>Providers sorted by live distance from your GPS position</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/crop-suggestions.jpg" width="270" alt="Next-season crop suggestions" /><br/><b>Next-season crops</b><br/><sub>Soil type + location + season, with live price context</sub></td>
+<td align="center"><img src="docs/screenshots/assistant.jpg" width="270" alt="Voice assistant" /><br/><b>Voice assistant</b><br/><sub>Speak or type in your language and hear the answer</sub></td>
+<td align="center"><img src="docs/screenshots/fpo-members.jpg" width="270" alt="FPO operator view" /><br/><b>FPO operator view</b><br/><sub>Every member's pooled lot and its status</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/buyer-browse.jpg" width="270" alt="Buyer browse lots" /><br/><b>Buyer: browse lots</b><br/><sub>Verified farmers and FPOs, ready to bid on</sub></td>
+<td align="center"><img src="docs/screenshots/buyer-profile.jpg" width="270" alt="Buyer profile" /><br/><b>Buyer: business profile</b><br/><sub>Own verification status, sourcing crops, volume</sub></td>
+<td></td>
+</tr>
+</table>
+
+</div>
+
+---
+
+## ✨ Features
+
+### 🧑‍🌾 For farmers
+- **Market intelligence** — mandi-wise prices, a 7-day trend chart, a price forecast and an explainable **Sell now / Sell soon / Hold** verdict with a confidence score.
+- **Net-realisation comparison** — every option is scored on what the farmer actually keeps (price − transport − commission − storage), not the headline price.
+- **Lots with reverse bidding** — list a lot with a photo and location, receive live bids, accept the best one.
+- **24-hour cancel window** — back out of an accepted offer before the buyer arranges pickup.
+- **Order tracking** across five stages, a digital transaction record and a **printable payment receipt**.
+- **Grievance flow** — raise a quality, payment or logistics dispute from any order.
+- **AI visual pre-grading** — six compliance checks (colour, size, shape, visible defects, maturity, disease/pest damage) and an overall grade.
+- **Buyer verification** — a full KYC checklist and track record behind every "Verified" badge; processor offers get a full-offer check, not just the quoted price.
+- **FPO aggregation** — pool a lot with nearby farmers for stronger bargaining power.
+- **Transport & storage** — providers sorted by real distance from the device's GPS position.
+- **Weather forecast** — live conditions and a 5-day outlook from Open-Meteo.
+- **Next-season crop suggestions** — recommendations from soil type, location and the coming season (Kharif / Rabi / Zaid).
+
+### 🏢 For buyers
+Browse verified lots, place offers and bids, track their status, view verified farmers and FPOs, and manage a business profile that shows their own verification state.
+
+### 🤝 For FPO operators
+A members-and-pooled-lots dashboard, verified buyers, and the market view.
+
+### 🌐 Across the app
+- **Trilingual** — English / हिंदी / मराठी for the interface, the voice input and the assistant's replies.
+- **Voice assistant** — speech-to-text input and text-to-speech output via the Web Speech API, with keyword-based intent detection in all three languages.
+- **Location-aware** — one-tap "use my location" with reverse geocoding.
+- **Installable PWA** — cached app shell for flaky rural connectivity.
+
+---
+
+## 🧠 How the intelligence works
+
+Everything below is deterministic and inspectable — the recommendations are *explainable*, which is the point.
+
+### 1. Net realisation — what the farmer actually keeps
+
+```
+net per quintal = base price − transport − commission − storage
 ```
 
-Use the **Try Demo … Account** buttons on the login page to explore each role.
+Worked example for a 30-quintal tomato lot:
 
-Options: `python devserver.py 3000` (custom port) or `python devserver.py 8800 0.0.0.0` (reachable from your phone on the same network).
+| Option | Base | Transport | Commission | **Net / qtl** | Note |
+|---|---:|---:|---:|---:|---|
+| **FPO Combined Lot** (AgroFresh) | ₹1,650 | ₹80 | ₹50 | **₹1,520** | ✅ Best — verified buyer, short distance |
+| Sharma Trading Co. | ₹1,500 | ₹20 | ₹0 | ₹1,480 | ⚠️ Unverified — payment risk flagged |
+| Lasalgaon Mandi | ₹1,700 | ₹150 | ₹80 | ₹1,470 | Highest headline price, but 3rd on net |
+| Nashik APMC Mandi | ₹1,580 | ₹40 | ₹90 | ₹1,450 | Standard commission erodes the return |
+
+The mandi with the highest price ranks third once real costs are counted — and the second-best net offer carries a visible trust warning.
+
+### 2. Sell or hold — an explainable verdict
+
+Combines 3-day / 7-day price momentum, the forecast direction and **crop perishability** (tomato and onion lose value fast; wheat, cotton and soybean store well).
+
+| Forecast | Perishable crop | Non-perishable crop |
+|---|---|---|
+| Falling | **SELL NOW** (92%) | **SELL NOW** (78%) |
+| Rising | **SELL SOON** (74%) — spoilage risk outweighs extra upside | **HOLD** (81%) — safe to wait |
+| Stable | **SELL NOW** (65%) | **HOLD** (65%) |
+
+Each verdict ships with plain-language reasons (e.g. *"Prices are up 4.4% in the last 3 days — a strong window to sell"*).
+
+### 3. Quality pre-grading — six compliance checks
+
+| Check | Looks at |
+|---|---|
+| Colour | Uniformity and depth of colour for the variety |
+| Size | Fit within the standard grading bracket |
+| Shape | Regularity and form |
+| Visible defects | Cuts, bruising, blemishes |
+| Maturity / ripeness | Harvest readiness for transport and shelf life |
+| Disease / pest damage | Signs of disease or insect damage |
+
+Each check scores 70–99% (pass at ≥ 85%); the average maps to **Premium Quality** (≥ 90), **Grade A** (≥ 78) or **Grade B**. *In this prototype the scores are derived deterministically from the photo's name and size — a stand-in for a real vision model — so the same photo always grades the same way.*
+
+### 4. Buyer verification — what's behind a "Verified" badge
+
+| Business & KYC | Track record |
+|---|---|
+| Business KYC · GSTIN · PAN · FSSAI licence (where food is handled) · bank-account ownership · registered address · capacity | Transaction history · payment-performance score · order-fulfilment rate · dispute history |
+
+An unverified trader shows red flags across the board; a cotton mill correctly shows FSSAI as *not applicable*.
+
+### 5. Next-season crop suggestions
+
+State → typical **soil type** lookup, then the **calendar month** → current season → next season (Kharif → Rabi → Zaid). Crops are filtered by soil suitability and tagged *Best Match* or *Also Suitable*, each with the live market price and trend.
+
+---
+
+## 🗺️ Farmer journey
+
+```mermaid
+flowchart LR
+  A(["Login / sign-up"]) --> B["Market intelligence<br/>prices · forecast · sell-or-hold"]
+  B --> C["Create lot<br/>photo + location"]
+  C --> D{"How to sell?"}
+  D -->|"live bids"| E["Reverse bidding"]
+  D -->|"compare"| F["Net-realisation options"]
+  E --> G["Accept offer"]
+  F --> G
+  G -->|"within 24 h"| X(["Cancel offer"])
+  G --> H["Book transport / storage"]
+  H --> I["Order tracking<br/>5 stages"]
+  I --> J["Payment receipt"]
+  I -.-> K["Raise grievance"]
+```
+
+---
+
+## 🏗️ Architecture
+
+A static single-page app — no framework, no bundler, no backend required. Pages are plain functions that return HTML plus a `mount()` hook.
+
+```mermaid
+flowchart LR
+  subgraph Browser["Browser — static SPA, no build step"]
+    IDX["index.html"] --> APP["app.js<br/>hash router + role guard"]
+    APP --> PG["pages.js<br/>24 page renderers"]
+    PG --> DATA["data.js<br/>mock datasets"]
+    PG --> STORE["store.js<br/>localStorage state"]
+    PG --> I18N["i18n.js<br/>EN · HI · MR"]
+    PG --> UI["ui.js + icons.js"]
+    SW["sw.js<br/>offline app shell"] -.-> IDX
+  end
+  PG -->|"GPS · speech"| BAPI["Browser APIs"]
+  PG -->|"forecast"| OM["Open-Meteo"]
+  PG -->|"reverse geocode"| OSM["OpenStreetMap Nominatim"]
+  PG -->|"/api/mandi"| PX["devserver.py<br/>CORS proxy"]
+  PX -->|"API key from env"| GOV["data.gov.in<br/>eNAM / Agmarknet prices"]
+```
+
+### Project structure
+
+```
+index.html         app shell — Tailwind CDN, fonts, service-worker registration
+manifest.json      PWA manifest
+sw.js              service worker: cached app shell; live API calls bypass the cache
+devserver.py       local static server + /api/mandi proxy
+css/style.css      global styles, photo-backdrop and card system
+js/app.js          router, header, bottom nav, role-based access control
+js/pages.js        every page renderer and its event wiring
+js/data.js         mock datasets, nav config, crop/soil planning data
+js/store.js        localStorage-backed state
+js/i18n.js         English / Hindi / Marathi dictionary
+js/icons.js        SVG icon set, image nav icons, logo
+js/ui.js           toast and modal helpers
+assets/            photos, icons, logo
+docs/              README banner and screenshots
+```
+
+### Engineering decisions worth noting
+
+- **No framework, no build step.** ES modules and hash routing keep it deployable to any static host and make the data flow easy to follow.
+- **Role-based access in one table.** A single `ROLE_RESTRICTED_PATHS` map drives route guarding, so adding a role doesn't mean untangling nested conditionals.
+- **Graceful degradation everywhere.** Weather, geocoding, live prices, geolocation, microphone and the service worker can each fail independently without breaking a page — the UI falls back to sample data or a clear message.
+- **A CORS-safe price feed.** data.gov.in sends no CORS headers, so a tiny same-origin proxy fetches prices server-side; the API key lives in an environment variable, never in the repo.
+- **Translation that can't break the UI.** `t()` falls back to the English string, so untranslated copy never renders blank.
+- **Layout gotcha handled.** Full-page photo backdrops are siblings of the animated page wrapper: a *finished* CSS transform animation still creates a containing block, which silently breaks `position: fixed` children.
+- **Honest simulation.** Where a real model would sit (grading, forecasting), the logic is rule-based, deterministic and labelled as such.
+
+---
+
+## 🧰 Tech stack
+
+| Layer | Choice |
+|---|---|
+| Language | Vanilla JavaScript (ES modules) |
+| Styling | Tailwind CSS (CDN) + a small custom stylesheet |
+| Routing / state | Hash router · `localStorage` |
+| Offline | Service worker (cached app shell) · web app manifest |
+| Voice | Web Speech API — `SpeechRecognition` + `speechSynthesis` |
+| Data / APIs | Open-Meteo · OpenStreetMap Nominatim · data.gov.in (optional) |
+| Dev server | Python 3 standard library (`http.server`) |
+| CI / deploy | GitHub Actions → GitHub Pages |
+
+---
+
+## 🚀 Getting started
+
+Requires Python 3. The app uses ES modules, so it must be served over HTTP — opening `index.html` straight from disk won't work.
+
+```bash
+git clone https://github.com/vinay-alla/KISAN-MITRA.git
+cd KISAN-MITRA
+python devserver.py
+```
+
+Open **http://127.0.0.1:8800** and use the **Try Demo … Account** buttons to explore each role.
+
+`python devserver.py 3000` picks a custom port; `python devserver.py 8800 0.0.0.0` makes it reachable from your phone on the same network.
 
 ### Optional: live mandi prices
 
-The Market page can pull real mandi prices (eNAM / Agmarknet data republished on
-[data.gov.in](https://data.gov.in)). That needs a free API key from data.gov.in:
+The Market page can show real mandi prices (eNAM / Agmarknet data republished on [data.gov.in](https://data.gov.in)). That needs a free API key:
 
 ```bash
 # macOS / Linux
 export DATA_GOV_IN_API_KEY="your-key"
+
 # Windows PowerShell
 $env:DATA_GOV_IN_API_KEY = "your-key"
 
 python devserver.py
 ```
 
-Without a key the app works normally and shows its built-in sample mandi data. The key is read
-from the environment only — never commit it.
+Without a key everything still works, and the Market page uses its built-in sample data.
 
-## Deploy to GitHub Pages
+### Deploy to GitHub Pages
 
-The repo includes a workflow (`.github/workflows/pages.yml`) that publishes the static app on
-every push to `main`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+`.github/workflows/pages.yml` publishes the static app on every push to `main`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.** Live prices are unavailable on Pages (there is no proxy), so the Market page uses sample data there.
 
-On Pages there is no `devserver.py`, so live mandi prices are unavailable and the Market page
-uses its sample data.
+---
 
-## Project structure
+## ⚠️ Known limitations
 
-```
-index.html        app shell (Tailwind via CDN, fonts, service-worker registration)
-manifest.json     PWA manifest
-sw.js             service worker (cached app shell)
-devserver.py      local static server + /api/mandi proxy
-css/style.css     global styles
-js/app.js         router, header, bottom nav, role-based access
-js/pages.js       every page render function
-js/data.js        mock datasets, nav config, crop/soil planning data
-js/store.js       localStorage-backed state
-js/i18n.js        English / Hindi / Marathi dictionary
-js/icons.js       SVG icon set + image nav icons + logo
-js/ui.js          toast / modal helpers
-assets/           photos, icons, logo
-```
+- **Authentication is client-side only.** Accounts live in `localStorage` and passwords are stored unhashed. Don't use a real password; a real backend is required for production.
+- **All data is mock data**, stored in the browser. There is no database; the only server code is the optional price proxy.
+- **"AI" is rule-based or simulated.** Forecasts and sell-or-hold use transparent rules; quality scores are derived from the file's name and size, not from image analysis.
+- Weather and place names need an internet connection (and browser permission for location). The voice assistant depends on the browser's Web Speech API — best in Chrome.
+- No automated tests yet.
 
-Vanilla JavaScript with hash-based routing — no framework and no build step.
+## 🛣️ Roadmap
 
-## Known limitations
+Ideas for taking this beyond a prototype — none of these exist yet:
 
-- **Authentication is client-side only.** Accounts live in the browser's `localStorage` and passwords are stored unhashed. Don't use a real password; a real backend is needed before any production use.
-- All data is mock data stored in the browser; there is no database or server API apart from the optional price proxy.
-- Quality grading scores are derived deterministically from the uploaded file's name and size — a stand-in for a real vision model.
-- Weather uses [Open-Meteo](https://open-meteo.com) and place names use OpenStreetMap [Nominatim](https://nominatim.org); both need an internet connection and, for location, browser permission.
-- The voice assistant relies on the browser's Web Speech API (best in Chrome).
+- [ ] Real backend and database (auth, lots, offers, orders) replacing `localStorage`
+- [ ] A real vision model for grading, plus the remaining checks — surface quality, uniformity, cleanliness / foreign matter, and separate disease vs pest detection
+- [ ] Time-series price forecasting on historical Agmarknet data
+- [ ] Direct eNAM integration and live buyer bidding
+- [ ] UPI-based payments and automated receipts
+- [ ] SMS / WhatsApp notifications for low-connectivity users
+- [ ] Automated tests and CI checks
 
-## Credits
+---
+
+## 👥 Team & context
+
+Built by **The 6 Innovators** for **Smart India Hackathon 2026** — Problem Statement **26132**, *Strengthening market linkages and price discovery for farmers*.
+
+## 🙏 Credits
 
 - Code: MIT License — see [LICENSE](LICENSE).
 - Logo: designed by the project team.
