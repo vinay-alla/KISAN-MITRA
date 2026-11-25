@@ -1,5 +1,6 @@
 """SQLite storage: schema, per-thread connections and a transaction helper."""
 import json
+import queue
 import sqlite3
 import threading
 from contextlib import contextmanager
@@ -215,24 +216,53 @@ class Database:
         if str(path) != ':memory:':
             self.path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
-        self._conns = []
+        self._pool: queue.LifoQueue = queue.LifoQueue()
+        self._all = []
         self._lock = threading.Lock()
         conn = self.conn()
+        conn.execute('PRAGMA journal_mode = WAL')   # persistent in the file; set once, not on every connection
         conn.executescript(SCHEMA)
         conn.execute('INSERT OR IGNORE INTO meta(key, value) VALUES (?, ?)', ('schema_version', str(SCHEMA_VERSION)))
+        self.release()
+
+    def _connect(self) -> sqlite3.Connection:
+        c = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False, timeout=20)
+        c.row_factory = sqlite3.Row
+        c.execute('PRAGMA foreign_keys = ON')
+        c.execute('PRAGMA busy_timeout = 20000')
+        c.execute('PRAGMA synchronous = NORMAL')   # safe with WAL; far fewer fsyncs under write load
+        with self._lock:
+            self._all.append(c)
+        return c
 
     def conn(self) -> sqlite3.Connection:
+        """The calling thread's connection. The server runs one thread per request, so connections are
+        pooled and handed back with release() — a new connection per request would leak handles and
+        contend for the write lock while connecting."""
         c = getattr(self._local, 'conn', None)
         if c is None:
-            c = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False, timeout=10)
-            c.row_factory = sqlite3.Row
-            c.execute('PRAGMA foreign_keys = ON')
-            c.execute('PRAGMA journal_mode = WAL')
-            c.execute('PRAGMA busy_timeout = 8000')
+            try:
+                c = self._pool.get_nowait()
+            except queue.Empty:
+                c = self._connect()
             self._local.conn = c
-            with self._lock:
-                self._conns.append(c)
         return c
+
+    def release(self):
+        c = getattr(self._local, 'conn', None)
+        if c is None:
+            return
+        self._local.conn = None
+        try:
+            if c.in_transaction:
+                c.execute('ROLLBACK')
+        except Exception:
+            try:
+                c.close()
+            except Exception:
+                pass
+            return
+        self._pool.put(c)
 
     @contextmanager
     def transaction(self):
@@ -249,10 +279,18 @@ class Database:
             c.execute('COMMIT')
 
     def one(self, sql, args=()):
-        return self.conn().execute(sql, args).fetchone()
+        cur = self.conn().execute(sql, args)
+        try:
+            return cur.fetchone()
+        finally:
+            cur.close()   # an unfinished SELECT would keep a stale read snapshot open
 
     def all(self, sql, args=()):
-        return self.conn().execute(sql, args).fetchall()
+        cur = self.conn().execute(sql, args)
+        try:
+            return cur.fetchall()
+        finally:
+            cur.close()
 
     def get_meta(self, key):
         row = self.one('SELECT value FROM meta WHERE key = ?', (key,))
@@ -263,12 +301,13 @@ class Database:
 
     def close(self):
         with self._lock:
-            for c in self._conns:
+            for c in self._all:
                 try:
                     c.close()
                 except Exception:
                     pass
-            self._conns.clear()
+            self._all.clear()
+        self._pool = queue.LifoQueue()
         self._local = threading.local()
 
 

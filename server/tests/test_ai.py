@@ -98,16 +98,16 @@ class AiEnabled(ApiTestCase):
 
     def test_chat_validation(self):
         for body in [{}, {'message': ''}, {'message': '   '}, {'message': 'x' * 801}, {'message': 123}]:
-            self.fail('POST', '/api/ai/chat', body, self.token)
-        self.fail('POST', '/api/ai/chat', {'message': 'hi'}, status=401)
+            self.err('POST', '/api/ai/chat', body, self.token)
+        self.err('POST', '/api/ai/chat', {'message': 'hi'}, status=401)
 
     def test_upstream_failures_become_clean_errors_without_leaking(self):
         for upstream, status, code in [(401, 502, 'ai_misconfigured'), (429, 503, 'ai_busy'), (500, 502, 'ai_unavailable')]:
             _fake.reply = {'status': upstream, 'body': {'error': {'message': 'sk-test-key leaked detail'}}}
-            d = self.fail('POST', '/api/ai/chat', {'message': 'hi'}, self.token, status=status, code=code)
+            d = self.err('POST', '/api/ai/chat', {'message': 'hi'}, self.token, status=status, code=code)
             self.assertNotIn('sk-test-key', json.dumps(d))
         _fake.reply = {'status': 200, 'body': {'content': []}}
-        self.fail('POST', '/api/ai/chat', {'message': 'hi'}, self.token, status=502, code='ai_empty')
+        self.err('POST', '/api/ai/chat', {'message': 'hi'}, self.token, status=502, code='ai_empty')
 
     def test_grade_parses_clamps_and_sends_the_image(self):
         _fake.text('Here you go: ' + json.dumps({**GOOD_GRADE, 'factors': {**GOOD_GRADE['factors'], 'colour': {'score': 250, 'note': 'n' * 500}, 'size': {'score': -5, 'note': ''}}}))
@@ -121,17 +121,17 @@ class AiEnabled(ApiTestCase):
 
     def test_grade_rejects_non_produce_and_garbage(self):
         _fake.text(json.dumps({'is_produce': False}))
-        self.fail('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=422, code='not_produce')
+        self.err('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=422, code='not_produce')
         _fake.text('I cannot help with that')
-        self.fail('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=502, code='ai_unreadable')
+        self.err('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=502, code='ai_unreadable')
         _fake.text(json.dumps({'is_produce': True, 'factors': {'colour': {'score': 'high'}}}))
-        self.fail('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=502, code='ai_unreadable')
+        self.err('POST', '/api/ai/grade', {'image': TINY_JPEG}, self.token, status=502, code='ai_unreadable')
 
     def test_grade_validates_image_input(self):
         for img in [None, 'hello', 'data:text/html;base64,PGI+', 'data:image/svg+xml;base64,PHN2Zz4=', 'data:image/jpeg;base64,' + 'A' * 1_500_000, 42]:
-            self.fail('POST', '/api/ai/grade', {'image': img}, self.token, code='invalid_image')
+            self.err('POST', '/api/ai/grade', {'image': img}, self.token, code='invalid_image')
         buyer, _, _ = self.register('buyer')
-        self.fail('POST', '/api/ai/grade', {'image': TINY_JPEG}, buyer, status=403)
+        self.err('POST', '/api/ai/grade', {'image': TINY_JPEG}, buyer, status=403)
 
     def test_hourly_quota(self):
         tok, _, _ = self.register('farmer')
@@ -148,8 +148,8 @@ class AiDisabled(ApiTestCase):
         tok, _, _ = self.register('farmer')
         self.assertFalse(self.ok('GET', '/api/health')['ai'])
         self.assertEqual(self.ok('GET', '/api/ai/status', token=tok)['enabled'], False)
-        self.fail('POST', '/api/ai/chat', {'message': 'hi'}, tok, status=503, code='ai_disabled')
-        self.fail('POST', '/api/ai/grade', {'image': TINY_JPEG}, tok, status=503, code='ai_disabled')
+        self.err('POST', '/api/ai/chat', {'message': 'hi'}, tok, status=503, code='ai_disabled')
+        self.err('POST', '/api/ai/grade', {'image': TINY_JPEG}, tok, status=503, code='ai_disabled')
 
 
 if __name__ == '__main__':

@@ -58,8 +58,8 @@ class RealtimeTests(ApiTestCase):
         s = Stream(self.base, token)
         self.assertEqual(s.status, 401)
         s.close()
-        self.fail('GET', '/api/auth/me', token=self.ticket(token), status=401)
-        self.fail('POST', '/api/stream/ticket', {}, status=401)
+        self.err('GET', '/api/auth/me', token=self.ticket(token), status=401)
+        self.err('POST', '/api/stream/ticket', {}, status=401)
 
     def test_hello_then_live_notification_on_a_new_bid(self):
         farmer, _, _ = self.register('farmer')
@@ -114,7 +114,7 @@ class RealtimeTests(ApiTestCase):
         s = Stream(self.base, self.ticket(farmer), timeout=2)
         try:
             s.wait_for('hello')
-            self.fail('POST', '/api/lots', {'crop': 'Nope', 'quantity': 1, 'grade': 'Grade A'}, farmer)
+            self.err('POST', '/api/lots', {'crop': 'Nope', 'quantity': 1, 'grade': 'Grade A'}, farmer)
             try:
                 got = s.wait_for('market', limit=2)
             except OSError:

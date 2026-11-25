@@ -4,6 +4,7 @@ import tempfile
 import threading
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -37,7 +38,7 @@ class ApiTestCase(unittest.TestCase):
     # -- tiny HTTP client: returns (status, json_or_bytes, headers)
     def call(self, method, path, body=None, token=None, headers=None, raw=None):
         data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
-        req = urllib.request.Request(self.base + path, data=data, method=method)
+        req = urllib.request.Request(self.base + urllib.parse.quote(path, safe="/?=&%:"), data=data, method=method)
         if data is not None:
             req.add_header('Content-Type', 'application/json')
         if token:
@@ -59,7 +60,7 @@ class ApiTestCase(unittest.TestCase):
         self.assertEqual(s, status, f'{method} {path} -> {s} {data}')
         return data
 
-    def fail(self, method, path, body=None, token=None, status=400, code=None):
+    def err(self, method, path, body=None, token=None, status=400, code=None):
         s, data, _ = self.call(method, path, body, token)
         self.assertEqual(s, status, f'{method} {path} -> {s} {data}')
         if code:

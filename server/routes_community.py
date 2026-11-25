@@ -216,7 +216,7 @@ def create_booking(ctx):
     kind = b.get('type')
     cat = catalogue()
     pools = {'transport': cat['transportProviders'], 'storage': cat['storageFacilities']}
-    if kind not in pools:
+    if not isinstance(kind, str) or kind not in pools:   # (a list/dict would be unhashable)
         raise bad("type must be 'transport' or 'storage'.")
     item = next((x for x in pools[kind] if x['name'] == b.get('name')), None)
     if not item:

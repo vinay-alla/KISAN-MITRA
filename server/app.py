@@ -192,6 +192,7 @@ def make_handler(app: App):
                     traceback.print_exc()
                 self._error(ApiError(500, 'internal_error', 'Something went wrong on the server.'))
             finally:
+                app.db.release()
                 if not cfg.quiet:
                     ms = (time.time() - started) * 1000
                     sys.stderr.write(f'{self._rid} {self.client_address[0]} {method} {parsed.path} -> {self._status} {ms:.0f}ms\n')
@@ -213,6 +214,7 @@ def make_handler(app: App):
             user = app.db.one('SELECT id, role FROM users WHERE id = ?', (payload.get('sub'),))
             if not sess or sess['revoked'] or sess['expires_at'] < now_ms() or not user:
                 raise ApiError(401, 'invalid_ticket', 'Session is no longer valid.')
+            app.db.release()   # a stream lives for hours; it must not pin a connection
             q = app.hub.subscribe(user['id'], user['role'])
             if q is None:
                 raise ApiError(429, 'too_many_streams', 'Too many open live connections for this account.')
@@ -241,6 +243,7 @@ def make_handler(app: App):
                     # Re-check the session now and then so a logged-out tab stops receiving data.
                     if event_type in ('notification',) or time.time() % 60 < 1:
                         s2 = app.db.one('SELECT revoked, expires_at FROM sessions WHERE id = ?', (payload.get('sid'),))
+                        app.db.release()
                         if not s2 or s2['revoked'] or s2['expires_at'] < now_ms():
                             return
             except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
