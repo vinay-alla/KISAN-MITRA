@@ -1,0 +1,814 @@
+{
+  "demoUsers": [
+    {
+      "role": "farmer",
+      "name": "Ramesh",
+      "fullName": "Ramesh Patil",
+      "location": "Nashik, Maharashtra",
+      "weather": 28,
+      "phone": "+91 98765 43210",
+      "memberSince": "Mar 2024",
+      "fpo": "Nashik Valley Farmers FPO",
+      "language": "English"
+    },
+    {
+      "role": "buyer",
+      "name": "Anjali",
+      "fullName": "Anjali Shah",
+      "company": "AgroFresh Exports Pvt Ltd",
+      "location": "Nashik, Maharashtra",
+      "weather": 28,
+      "phone": "+91 91234 56789",
+      "memberSince": "Jan 2024",
+      "verified": true,
+      "reliability": 4.8,
+      "language": "English"
+    },
+    {
+      "role": "fpo_operator",
+      "name": "Vikram",
+      "fullName": "Vikram Kulkarni",
+      "designation": "Operations Manager",
+      "fpo": "Nashik Valley Farmers FPO",
+      "location": "Nashik, Maharashtra",
+      "weather": 28,
+      "phone": "+91 99887 66554",
+      "memberSince": "Jan 2022",
+      "language": "English"
+    }
+  ],
+  "demoLots": [
+    {
+      "id": "LOT-1042",
+      "crop": "Tomato",
+      "quantity": 30,
+      "unit": "Quintals",
+      "grade": "Premium Quality",
+      "harvestDate": "24 May 2026",
+      "location": "Nashik",
+      "status": "Recommendation Ready",
+      "photo": true
+    },
+    {
+      "id": "LOT-1038",
+      "crop": "Onion",
+      "quantity": 45,
+      "unit": "Quintals",
+      "grade": "Grade A",
+      "harvestDate": "18 May 2026",
+      "location": "Nashik",
+      "status": "Offer Accepted"
+    },
+    {
+      "id": "LOT-1021",
+      "crop": "Wheat",
+      "quantity": 60,
+      "unit": "Quintals",
+      "grade": "Grade B",
+      "harvestDate": "2 May 2026",
+      "location": "Nashik",
+      "status": "Sold"
+    }
+  ],
+  "availableLots": [
+    {
+      "id": "LOT-2242",
+      "farmerLotId": "LOT-1042",
+      "farmer": "Ramesh Patil",
+      "fpo": "Nashik Valley Farmers FPO",
+      "crop": "Tomato",
+      "quantity": 30,
+      "unit": "Quintals",
+      "grade": "Premium Quality",
+      "location": "Nashik",
+      "distance": "8 km",
+      "askingPrice": 1650,
+      "harvestDate": "24 May 2026",
+      "verified": true
+    },
+    {
+      "id": "LOT-2201",
+      "farmer": "Suresh Jadhav",
+      "fpo": "Nashik Valley Farmers FPO",
+      "crop": "Tomato",
+      "quantity": 40,
+      "unit": "Quintals",
+      "grade": "Premium Quality",
+      "location": "Nashik",
+      "distance": "6 km",
+      "askingPrice": 1620,
+      "harvestDate": "22 May 2026",
+      "verified": true
+    },
+    {
+      "id": "LOT-2214",
+      "farmer": "Meera Kale",
+      "fpo": null,
+      "crop": "Onion",
+      "quantity": 25,
+      "unit": "Quintals",
+      "grade": "Grade A",
+      "location": "Pimpalgaon",
+      "distance": "20 km",
+      "askingPrice": 1650,
+      "harvestDate": "19 May 2026",
+      "verified": true
+    },
+    {
+      "id": "LOT-2230",
+      "farmer": "Anil Deshmukh",
+      "fpo": "Nashik Valley Farmers FPO",
+      "crop": "Wheat",
+      "quantity": 80,
+      "unit": "Quintals",
+      "grade": "Grade A",
+      "location": "Niphad",
+      "distance": "22 km",
+      "askingPrice": 2240,
+      "harvestDate": "10 May 2026",
+      "verified": true
+    },
+    {
+      "id": "LOT-2255",
+      "farmer": "Kiran Bhosale",
+      "fpo": null,
+      "crop": "Cotton",
+      "quantity": 15,
+      "unit": "Quintals",
+      "grade": "Grade B",
+      "location": "Malegaon",
+      "distance": "45 km",
+      "askingPrice": 6350,
+      "harvestDate": "5 May 2026",
+      "verified": false
+    },
+    {
+      "id": "LOT-2266",
+      "farmer": "Pooja Wagh",
+      "fpo": null,
+      "crop": "Soybean",
+      "quantity": 50,
+      "unit": "Quintals",
+      "grade": "Grade A",
+      "location": "Sinnar",
+      "distance": "30 km",
+      "askingPrice": 4480,
+      "harvestDate": "8 May 2026",
+      "verified": true
+    },
+    {
+      "id": "LOT-2270",
+      "farmerLotId": "LOT-1038",
+      "farmer": "Ramesh Patil",
+      "fpo": "Nashik Valley Farmers FPO",
+      "crop": "Onion",
+      "quantity": 45,
+      "unit": "Quintals",
+      "grade": "Grade A",
+      "location": "Nashik",
+      "distance": "8 km",
+      "askingPrice": 1680,
+      "harvestDate": "18 May 2026",
+      "verified": true
+    }
+  ],
+  "pools": [
+    {
+      "id": "P1",
+      "crop": "Tomato",
+      "grade": "Premium Quality",
+      "buyerId": "B1",
+      "buyer": "AgroFresh Exports Pvt Ltd",
+      "basePrice": 1650,
+      "targetQty": 150,
+      "pooledQty": 70,
+      "closes": "in 3 days",
+      "tiers": [
+        {
+          "minQty": 100,
+          "uplift": 40
+        },
+        {
+          "minQty": 150,
+          "uplift": 90
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "crop": "Onion",
+      "grade": "Grade A",
+      "buyerId": "B2",
+      "buyer": "Nashik Valley Farmers FPO",
+      "basePrice": 1690,
+      "targetQty": 200,
+      "pooledQty": 95,
+      "closes": "in 4 days",
+      "tiers": [
+        {
+          "minQty": 150,
+          "uplift": 35
+        },
+        {
+          "minQty": 200,
+          "uplift": 80
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "crop": "Wheat",
+      "grade": "Grade A",
+      "buyerId": "B3",
+      "buyer": "Deccan Agro Processors",
+      "basePrice": 2240,
+      "targetQty": 300,
+      "pooledQty": 180,
+      "closes": "in 5 days",
+      "tiers": [
+        {
+          "minQty": 200,
+          "uplift": 30
+        },
+        {
+          "minQty": 300,
+          "uplift": 70
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "crop": "Soybean",
+      "grade": "Grade A",
+      "buyerId": "B3",
+      "buyer": "Deccan Agro Processors",
+      "basePrice": 4480,
+      "targetQty": 250,
+      "pooledQty": 120,
+      "closes": "in 6 days",
+      "tiers": [
+        {
+          "minQty": 150,
+          "uplift": 40
+        },
+        {
+          "minQty": 250,
+          "uplift": 90
+        }
+      ]
+    }
+  ],
+  "sharedTrips": [
+    {
+      "id": "ST1",
+      "route": "Nashik → Lasalgaon Mandi",
+      "when": "Tomorrow · 6:00 AM",
+      "providerId": "T2",
+      "vehicle": "Truck (7 tonne)",
+      "capacityQtl": 70,
+      "bookedQtl": 38,
+      "distanceKm": 70,
+      "ratePerKm": 18,
+      "soloVehicle": "Mini Truck (3 tonne)",
+      "soloRatePerKm": 22,
+      "soloCapacityQtl": 30
+    },
+    {
+      "id": "ST2",
+      "route": "Nashik → Niphad Mandi",
+      "when": "Thursday · 5:00 AM",
+      "providerId": "T1",
+      "vehicle": "Mini Truck (3 tonne)",
+      "capacityQtl": 30,
+      "bookedQtl": 12,
+      "distanceKm": 44,
+      "ratePerKm": 22,
+      "soloVehicle": "Tractor Trolley (2 tonne)",
+      "soloRatePerKm": 15,
+      "soloCapacityQtl": 20
+    },
+    {
+      "id": "ST3",
+      "route": "Nashik → Malegaon Mandi",
+      "when": "Friday · 4:30 AM",
+      "providerId": "T2",
+      "vehicle": "Truck (7 tonne)",
+      "capacityQtl": 70,
+      "bookedQtl": 20,
+      "distanceKm": 90,
+      "ratePerKm": 18,
+      "soloVehicle": "Tempo (1.5 tonne)",
+      "soloRatePerKm": 26,
+      "soloCapacityQtl": 15
+    }
+  ],
+  "storageFacilities": [
+    {
+      "id": "S1",
+      "name": "Krishi Cold Storage",
+      "type": "Cold Storage",
+      "tempRange": "2°C – 8°C",
+      "ratePerDay": 4,
+      "capacity": "150 MT available",
+      "distance": "6 km",
+      "lat": 19.9435,
+      "lon": 73.7898,
+      "rating": 4.6,
+      "verified": true,
+      "suitableFor": [
+        "Tomato",
+        "Onion"
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "Nashik Valley FPO Warehouse",
+      "type": "Dry Warehouse",
+      "tempRange": "Ambient",
+      "ratePerDay": 1.5,
+      "capacity": "500 MT available",
+      "distance": "5 km",
+      "lat": 19.9655,
+      "lon": 73.7578,
+      "rating": 4.8,
+      "verified": true,
+      "suitableFor": [
+        "Wheat",
+        "Cotton",
+        "Soybean"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "AgroFresh Cold Chain Hub",
+      "type": "Cold Storage",
+      "tempRange": "0°C – 4°C",
+      "ratePerDay": 5.5,
+      "capacity": "80 MT available",
+      "distance": "10 km",
+      "lat": 19.9975,
+      "lon": 73.8858,
+      "rating": 4.5,
+      "verified": true,
+      "suitableFor": [
+        "Tomato",
+        "Onion",
+        "Soybean"
+      ]
+    },
+    {
+      "id": "S4",
+      "name": "Village Community Godown",
+      "type": "Dry Warehouse",
+      "tempRange": "Ambient",
+      "ratePerDay": 1,
+      "capacity": "220 MT available",
+      "distance": "2 km",
+      "lat": 20.0155,
+      "lon": 73.7898,
+      "rating": 4,
+      "verified": false,
+      "suitableFor": [
+        "Wheat",
+        "Cotton"
+      ]
+    }
+  ],
+  "transportProviders": [
+    {
+      "id": "T1",
+      "name": "Patil Logistics",
+      "vehicle": "Mini Truck (3 tonne)",
+      "ratePerKm": 22,
+      "distance": "8 km",
+      "lat": 20.0475,
+      "lon": 73.8398,
+      "eta": "Pickup in 3 hrs",
+      "rating": 4.7,
+      "verified": true,
+      "phone": "+91 98220 11223"
+    },
+    {
+      "id": "T2",
+      "name": "Nashik Valley FPO Fleet",
+      "vehicle": "Truck (7 tonne)",
+      "ratePerKm": 18,
+      "distance": "5 km",
+      "lat": 20.0425,
+      "lon": 73.7898,
+      "eta": "Pickup in 2 hrs",
+      "rating": 4.9,
+      "verified": true,
+      "phone": "+91 98230 44556"
+    },
+    {
+      "id": "T3",
+      "name": "Shinde Transport Co.",
+      "vehicle": "Tempo (1.5 tonne)",
+      "ratePerKm": 26,
+      "distance": "12 km",
+      "lat": 19.9275,
+      "lon": 73.8698,
+      "eta": "Pickup tomorrow",
+      "rating": 4.2,
+      "verified": true,
+      "phone": "+91 97640 77889"
+    },
+    {
+      "id": "T4",
+      "name": "Local Tractor-Trolley",
+      "vehicle": "Tractor Trolley (2 tonne)",
+      "ratePerKm": 15,
+      "distance": "3 km",
+      "lat": 19.9975,
+      "lon": 73.7608,
+      "eta": "Pickup in 1 hr",
+      "rating": 3.8,
+      "verified": false,
+      "phone": "+91 90210 99887"
+    }
+  ],
+  "buyers": [
+    {
+      "id": "B1",
+      "name": "AgroFresh Exports Pvt Ltd",
+      "type": "Exporter",
+      "crops": [
+        "Tomato",
+        "Onion"
+      ],
+      "preferredGrades": [
+        "Premium Quality"
+      ],
+      "reliability": 4.8,
+      "verified": true,
+      "volume": "1,200 qtl/month",
+      "distance": "8 km",
+      "payment": "Within 24 hrs",
+      "tag": "Top Rated",
+      "kyc": {
+        "businessKyc": "verified",
+        "gstin": "verified",
+        "gstinNumber": "27AAFCA5566K1Z8",
+        "pan": "verified",
+        "panNumber": "AAFCA5566K",
+        "fssai": "verified",
+        "fssaiNumber": "10023045001234",
+        "bankAccount": "verified",
+        "address": "verified",
+        "addressText": "MIDC Industrial Area, Nashik, Maharashtra",
+        "capacity": "verified",
+        "capacityNote": "Export handling capacity of 1,500 qtl/month confirmed against warehouse licence",
+        "transactions": 214,
+        "transactionVolume": "24,600 qtl since 2020",
+        "paymentScore": 97,
+        "disputes": 1,
+        "disputesResolved": 1,
+        "fulfilmentRate": 98
+      }
+    },
+    {
+      "id": "B2",
+      "name": "Nashik Valley Farmers FPO",
+      "type": "FPO Aggregator",
+      "crops": [
+        "Tomato",
+        "Onion",
+        "Wheat"
+      ],
+      "preferredGrades": [
+        "Premium Quality",
+        "Grade A",
+        "Grade B"
+      ],
+      "reliability": 4.9,
+      "verified": true,
+      "volume": "3,400 qtl/month",
+      "distance": "5 km",
+      "payment": "Within 48 hrs",
+      "tag": "FPO Partner",
+      "kyc": {
+        "businessKyc": "verified",
+        "gstin": "verified",
+        "gstinNumber": "27AAJCS1122P1Z4",
+        "pan": "verified",
+        "panNumber": "AAJCS1122P",
+        "fssai": "verified",
+        "fssaiNumber": "10023098887766",
+        "bankAccount": "verified",
+        "address": "verified",
+        "addressText": "FPO Bhavan, Ozar Road, Nashik, Maharashtra",
+        "capacity": "verified",
+        "capacityNote": "Aggregation capacity of 4,000 qtl/month matches warehouse records",
+        "transactions": 312,
+        "transactionVolume": "41,200 qtl since 2019",
+        "paymentScore": 98,
+        "disputes": 0,
+        "disputesResolved": 0,
+        "fulfilmentRate": 99
+      }
+    },
+    {
+      "id": "B3",
+      "name": "Deccan Agro Processors",
+      "type": "Processor",
+      "crops": [
+        "Wheat",
+        "Soybean"
+      ],
+      "preferredGrades": [
+        "Grade A",
+        "Grade B"
+      ],
+      "reliability": 4.5,
+      "verified": true,
+      "volume": "2,100 qtl/month",
+      "distance": "22 km",
+      "payment": "Within 3 days",
+      "tag": "Bulk Buyer",
+      "kyc": {
+        "businessKyc": "verified",
+        "gstin": "verified",
+        "gstinNumber": "27AADCD7788L1Z2",
+        "pan": "verified",
+        "panNumber": "AADCD7788L",
+        "fssai": "verified",
+        "fssaiNumber": "10023076543210",
+        "bankAccount": "verified",
+        "address": "verified",
+        "addressText": "Plot 14, MIDC Sinnar, Nashik, Maharashtra",
+        "capacity": "verified",
+        "capacityNote": "Milling capacity of 2,500 qtl/month matches factory licence on record",
+        "transactions": 96,
+        "transactionVolume": "11,800 qtl since 2021",
+        "paymentScore": 89,
+        "disputes": 2,
+        "disputesResolved": 2,
+        "fulfilmentRate": 93
+      }
+    },
+    {
+      "id": "B4",
+      "name": "Sharma Trading Co.",
+      "type": "Local Trader",
+      "crops": [
+        "Tomato",
+        "Cotton"
+      ],
+      "preferredGrades": [
+        "Premium Quality",
+        "Grade A",
+        "Grade B"
+      ],
+      "reliability": 3.2,
+      "verified": false,
+      "volume": "180 qtl/month",
+      "distance": "3 km",
+      "payment": "Cash on delivery",
+      "tag": "Unverified",
+      "kyc": {
+        "businessKyc": "pending",
+        "gstin": "not_verified",
+        "gstinNumber": null,
+        "pan": "pending",
+        "panNumber": null,
+        "fssai": "not_applicable",
+        "fssaiNumber": null,
+        "bankAccount": "not_verified",
+        "address": "not_verified",
+        "addressText": "Address on file could not be confirmed",
+        "capacity": "not_verified",
+        "capacityNote": "No capacity or storage records on file to verify claimed volume",
+        "transactions": 8,
+        "transactionVolume": "180 qtl since 2024",
+        "paymentScore": 54,
+        "disputes": 3,
+        "disputesResolved": 1,
+        "fulfilmentRate": 71
+      }
+    },
+    {
+      "id": "B5",
+      "name": "Maharashtra Cotton Mills",
+      "type": "Processor",
+      "crops": [
+        "Cotton"
+      ],
+      "preferredGrades": [
+        "Grade A",
+        "Grade B"
+      ],
+      "reliability": 4.6,
+      "verified": true,
+      "volume": "900 qtl/month",
+      "distance": "45 km",
+      "payment": "Within 5 days",
+      "tag": "Bulk Buyer",
+      "kyc": {
+        "businessKyc": "verified",
+        "gstin": "verified",
+        "gstinNumber": "27AACCM3344N1Z6",
+        "pan": "verified",
+        "panNumber": "AACCM3344N",
+        "fssai": "not_applicable",
+        "fssaiNumber": null,
+        "bankAccount": "verified",
+        "address": "verified",
+        "addressText": "Mill Road, Malegaon, Nashik, Maharashtra",
+        "capacity": "verified",
+        "capacityNote": "Ginning & processing capacity of 1,800 qtl/month confirmed against factory licence",
+        "transactions": 58,
+        "transactionVolume": "9,400 qtl since 2022",
+        "paymentScore": 91,
+        "disputes": 1,
+        "disputesResolved": 1,
+        "fulfilmentRate": 95
+      }
+    }
+  ],
+  "commodities": [
+    {
+      "id": "tomato",
+      "name": "Tomato",
+      "unit": "quintal",
+      "trend": [
+        1400,
+        1420,
+        1460,
+        1500,
+        1580,
+        1610,
+        1650
+      ],
+      "forecast": "rising",
+      "mandis": [
+        {
+          "name": "Nashik APMC",
+          "price": 1580,
+          "arrivals": "420 qtl",
+          "distance": "12 km",
+          "trend": "up"
+        },
+        {
+          "name": "Lasalgaon Mandi",
+          "price": 1700,
+          "arrivals": "610 qtl",
+          "distance": "35 km",
+          "trend": "up"
+        },
+        {
+          "name": "Pune Market Yard",
+          "price": 1540,
+          "arrivals": "350 qtl",
+          "distance": "180 km",
+          "trend": "flat"
+        }
+      ]
+    },
+    {
+      "id": "onion",
+      "name": "Onion",
+      "unit": "quintal",
+      "trend": [
+        1850,
+        1820,
+        1790,
+        1760,
+        1740,
+        1700,
+        1680
+      ],
+      "forecast": "falling",
+      "mandis": [
+        {
+          "name": "Nashik APMC",
+          "price": 1680,
+          "arrivals": "890 qtl",
+          "distance": "12 km",
+          "trend": "down"
+        },
+        {
+          "name": "Lasalgaon Mandi",
+          "price": 1720,
+          "arrivals": "1,100 qtl",
+          "distance": "35 km",
+          "trend": "down"
+        },
+        {
+          "name": "Pimpalgaon Market",
+          "price": 1650,
+          "arrivals": "540 qtl",
+          "distance": "28 km",
+          "trend": "flat"
+        }
+      ]
+    },
+    {
+      "id": "wheat",
+      "name": "Wheat",
+      "unit": "quintal",
+      "trend": [
+        2210,
+        2225,
+        2230,
+        2245,
+        2250,
+        2248,
+        2255
+      ],
+      "forecast": "stable",
+      "mandis": [
+        {
+          "name": "Nashik APMC",
+          "price": 2255,
+          "arrivals": "260 qtl",
+          "distance": "12 km",
+          "trend": "flat"
+        },
+        {
+          "name": "Niphad Mandi",
+          "price": 2270,
+          "arrivals": "310 qtl",
+          "distance": "22 km",
+          "trend": "up"
+        },
+        {
+          "name": "Pune Market Yard",
+          "price": 2240,
+          "arrivals": "190 qtl",
+          "distance": "180 km",
+          "trend": "flat"
+        }
+      ]
+    },
+    {
+      "id": "cotton",
+      "name": "Cotton",
+      "unit": "quintal",
+      "trend": [
+        6100,
+        6180,
+        6250,
+        6320,
+        6400,
+        6460,
+        6500
+      ],
+      "forecast": "rising",
+      "mandis": [
+        {
+          "name": "Malegaon Mandi",
+          "price": 6500,
+          "arrivals": "180 qtl",
+          "distance": "45 km",
+          "trend": "up"
+        },
+        {
+          "name": "Nashik APMC",
+          "price": 6420,
+          "arrivals": "95 qtl",
+          "distance": "12 km",
+          "trend": "up"
+        }
+      ]
+    },
+    {
+      "id": "soybean",
+      "name": "Soybean",
+      "unit": "quintal",
+      "trend": [
+        4550,
+        4520,
+        4500,
+        4480,
+        4460,
+        4470,
+        4450
+      ],
+      "forecast": "falling",
+      "mandis": [
+        {
+          "name": "Nashik APMC",
+          "price": 4450,
+          "arrivals": "510 qtl",
+          "distance": "12 km",
+          "trend": "down"
+        },
+        {
+          "name": "Amravati Mandi",
+          "price": 4520,
+          "arrivals": "740 qtl",
+          "distance": "260 km",
+          "trend": "down"
+        }
+      ]
+    }
+  ],
+  "orderStages": [
+    "Offer Accepted",
+    "Picked Up",
+    "In Transit",
+    "Delivered",
+    "Payment Received"
+  ]
+}

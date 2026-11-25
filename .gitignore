@@ -18,3 +18,9 @@ node_modules/
 # Local tooling / logs
 .claude/
 *.log
+
+# Backend runtime data (SQLite database, generated secret)
+data/
+*.db
+*.db-wal
+*.db-shm
