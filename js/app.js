@@ -15,6 +15,7 @@ const bottomNavEl = document.getElementById('bottom-nav');
 const overlayEl = document.getElementById('menu-overlay');
 
 let menuOpen = false;
+let moreOpen = false; // desktop "More" dropdown
 
 function currentPath() {
   const h = location.hash.replace(/^#/, '') || '/';
@@ -38,6 +39,7 @@ const ROLE_BADGE = { buyer: 'BUYER', fpo_operator: 'FPO OPERATOR' };
 function renderHeader(path) {
   const user = store.get().user;
   const { bottom, more } = navFor(user?.role);
+  const moreActive = more.some((n) => isActive(path, n.path));
   headerEl.innerHTML = `
     <div class="max-w-5xl mx-auto flex items-center justify-between gap-3 px-4 md:px-6 py-3">
       <a href="#/" aria-label="Kisan Mitra — home" class="flex items-center gap-2.5 shrink-0">
@@ -46,11 +48,23 @@ function renderHeader(path) {
         ${ROLE_BADGE[user?.role] ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary/15 text-secondary">${ROLE_BADGE[user.role]}</span>` : ''}
       </a>
 
-      <nav aria-label="Main" class="hidden lg:flex items-center gap-1 overflow-x-auto scrollbar-none">
-        ${bottom.concat(more).map((n) => `
+      <nav aria-label="Main" class="hidden lg:flex items-center gap-1">
+        ${bottom.map((n) => `
           <a href="${n.path}" ${isActive(path, n.path) ? 'aria-current="page"' : ''} class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}">
             ${navIcon(n.icon, 'w-5 h-5')} ${t(n.label)}
           </a>`).join('')}
+        <div class="relative">
+          <button id="more-toggle" aria-haspopup="true" aria-expanded="${moreOpen}" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition ${moreActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}">
+            ${t('More')} ${icon('chevronDown', `w-4 h-4 transition ${moreOpen ? 'rotate-180' : ''}`)}
+          </button>
+          ${moreOpen ? `
+          <div id="more-panel" class="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-2xl shadow-xl p-1.5 z-50">
+            ${more.map((n) => `
+              <a href="${n.path}" ${isActive(path, n.path) ? 'aria-current="page"' : ''} class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-bold transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'}">
+                ${navIcon(n.icon, 'w-5 h-5')} ${t(n.label)}
+              </a>`).join('')}
+          </div>` : ''}
+        </div>
       </nav>
 
       <div class="flex items-center gap-2 shrink-0">
@@ -63,6 +77,13 @@ function renderHeader(path) {
         </button>
       </div>
     </div>`;
+
+  headerEl.querySelector('#more-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreOpen = !moreOpen;
+    renderHeader(currentPath());
+    if (moreOpen) headerEl.querySelector('#more-panel a')?.focus();
+  });
 
   headerEl.querySelector('#menu-toggle').addEventListener('click', () => {
     menuOpen = !menuOpen;
@@ -176,10 +197,21 @@ window.addEventListener('unhandledrejection', (e) => reportRuntimeError(e.reason
 
 // Escape closes the mobile menu (modals handle Escape themselves).
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && menuOpen) {
+  if (e.key === 'Escape' && (menuOpen || moreOpen)) {
+    const returnFocus = moreOpen;
     menuOpen = false;
+    moreOpen = false;
     renderHeader(currentPath());
     renderOverlay(currentPath());
+    if (returnFocus) headerEl.querySelector('#more-toggle')?.focus();
+  }
+});
+
+// Click anywhere outside the dropdown closes it.
+document.addEventListener('click', (e) => {
+  if (moreOpen && !e.target.closest('#more-panel')) {
+    moreOpen = false;
+    renderHeader(currentPath());
   }
 });
 
@@ -195,6 +227,7 @@ function render() {
   if (user && !canAccess(user.role, path)) { location.hash = '#/'; return; }
 
   menuOpen = false;
+  moreOpen = false;
   document.documentElement.lang = currentLangCode();
 
   // Error boundary: a bug in one page must never leave the user on a blank screen.

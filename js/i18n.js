@@ -24,6 +24,8 @@ export const DICT = {
   'Weather Forecast': { hi: 'मौसम पूर्वानुमान', mr: 'हवामान अंदाज' },
   'Transaction History': { hi: 'लेन-देन इतिहास', mr: 'व्यवहार इतिहास' },
 
+  'More': { hi: 'और', mr: 'आणखी' },
+
   // grievances
   'Grievances': { hi: 'शिकायतें', mr: 'तक्रारी' },
   'Raise an issue with an order, payment or buyer and track it to resolution': { hi: 'ऑर्डर, भुगतान या खरीदार की समस्या दर्ज करें और समाधान तक ट्रैक करें', mr: 'ऑर्डर, पेमेंट किंवा खरेदीदाराची समस्या नोंदवा आणि निराकरणापर्यंत मागोवा घ्या' },
