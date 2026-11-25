@@ -96,6 +96,28 @@ function readAsDataUrl(file) {
   });
 }
 
+// Phone photos are several MB; stored as-is they would exhaust localStorage's ~5 MB quota and
+// silently stop everything from saving. Downscale to a thumbnail-sized JPEG first.
+async function compactImageDataUrl(file, maxDim = 800, quality = 0.8) {
+  const raw = await readAsDataUrl(file);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = raw;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch {
+    return raw.length < 400_000 ? raw : null; // can't shrink it and it's too big to keep
+  }
+}
+
 function sparkline(trend, days) {
   const min = Math.min(...trend), max = Math.max(...trend);
   const range = max - min || 1;
@@ -462,7 +484,7 @@ function renderHome() {
           <h3 class="font-extrabold text-lg mb-3">Tap &amp; Speak</h3>
           <div class="flex items-center gap-2">
             <input id="vq-input" placeholder="Ask e.g. 'When should I sell tomato?'" class="flex-1 border border-border rounded-xl px-3 py-2.5 bg-background" />
-            <button id="vq-mic" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('mic', 'w-5 h-5')}</button>
+            <button id="vq-mic" aria-label="${t('Speak your question')}" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('mic', 'w-5 h-5')}</button>
           </div>
           <button id="vq-go" class="w-full mt-4 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Ask KisanMitra AI</button>
         </div>`, {
@@ -588,7 +610,7 @@ function renderMarket(initialId) {
         <h3 class="font-extrabold">Mandi-wise Prices &amp; Arrivals</h3>
         <div class="flex items-center gap-1.5">
           <span id="live-badge">${liveBadgeHtml('fallback')}</span>
-          <button id="mandi-refresh" title="Refresh live prices" class="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">${icon('trending', 'w-3 h-3')}</button>
+          <button id="mandi-refresh" title="Refresh live prices" aria-label="Refresh live prices" class="w-6 h-6 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">${icon('trending', 'w-3 h-3')}</button>
         </div>
       </div>
       <div class="space-y-2" id="mandi-list">
@@ -736,7 +758,10 @@ function renderLots() {
           photoInput.addEventListener('change', async () => {
             const file = photoInput.files[0];
             if (!file) return;
-            photoUrl = await readAsDataUrl(file);
+            if (!file.type.startsWith('image/')) { toast('Please choose an image file.', { tone: 'error', icon: 'camera' }); return; }
+            const compact = await compactImageDataUrl(file);
+            if (!compact) { toast('That photo is too large to store. Try a smaller one.', { tone: 'error', icon: 'camera' }); return; }
+            photoUrl = compact;
             photoPreview.src = photoUrl;
             photoPreview.classList.remove('hidden');
             photoBtn.innerHTML = `${icon('checkCircle', 'w-4 h-4')}Photo added`;
@@ -1058,7 +1083,7 @@ function renderOrders() {
         ${stage === D.ORDER_STAGES.length - 1 ? `<button data-receipt="${o.id}" class="mt-3 w-full flex items-center justify-center gap-1.5 bg-primary/10 text-primary text-sm font-bold py-2.5 rounded-lg hover:bg-primary/15 transition">${icon('receipt', 'w-4 h-4')}${t('View Payment Receipt')}</button>` : ''}
         <div class="flex gap-2 mt-4">
           ${stage < D.ORDER_STAGES.length - 1 ? `<button data-advance="${o.id}" data-stage="${stage + 1}" class="flex-1 bg-primary text-primary-foreground text-sm font-bold py-2 rounded-lg hover:opacity-90 transition">Mark "${D.ORDER_STAGES[stage + 1]}"</button>` : `<span class="flex-1 text-center bg-primary/10 text-primary text-sm font-bold py-2 rounded-lg">Completed ✓</span>`}
-          <button data-record="${o.id}" class="border border-border text-sm font-bold px-3 py-2 rounded-lg hover:bg-muted transition">${icon('clipboard', 'w-4 h-4')}</button>
+          <button data-record="${o.id}" aria-label="View transaction record" title="View transaction record" class="border border-border text-sm font-bold px-3 py-2 rounded-lg hover:bg-muted transition">${icon('clipboard', 'w-4 h-4')}</button>
           <button data-dispute="${o.id}" aria-label="${t('Raise a Grievance')}" title="${t('Raise a Grievance')}" class="border border-destructive/40 text-destructive text-sm font-bold px-3 py-2 rounded-lg hover:bg-destructive/10 transition">${icon('alert', 'w-4 h-4')}</button>
         </div>
       </div>`;
@@ -3136,9 +3161,9 @@ function renderAssistant() {
         <h1 class="font-extrabold text-lg">Kisan Mitra AI</h1>
         <div class="text-xs text-primary font-semibold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary inline-block"></span>${t('Online · Voice-first, local languages')}</div>
       </div>
-      <button id="voice-mute-toggle" class="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition shrink-0" title="Toggle spoken replies"></button>
+      <button id="voice-mute-toggle" role="switch" aria-label="Spoken replies" class="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition shrink-0" title="Toggle spoken replies"></button>
     </div>
-    <div id="chat-log" class="px-4 md:px-6 py-3 space-y-3 min-h-[40vh]"></div>
+    <div id="chat-log" role="log" aria-live="polite" aria-label="Conversation" class="px-4 md:px-6 py-3 space-y-3 min-h-[40vh]"></div>
     <div class="px-4 md:px-6" id="suggestions-wrap">
       <p class="text-xs font-bold text-muted-foreground mb-2">${t('Suggested questions:')}</p>
       <div class="flex flex-col gap-2 mb-3" id="suggestions">
@@ -3147,9 +3172,9 @@ function renderAssistant() {
     </div>
     <div class="sticky bottom-16 md:bottom-0 bg-background px-4 md:px-6 py-3 border-t border-border mt-2">
       <form id="chat-form" class="flex items-center gap-2">
-        <input id="chat-input" autocomplete="off" placeholder="${t('Ask when, where, or whom to sell to...')}" class="flex-1 border border-border rounded-full px-4 py-3 bg-card" />
-        <button type="button" id="mic-btn" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('mic', 'w-5 h-5')}</button>
-        <button type="submit" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('send', 'w-4 h-4')}</button>
+        <input id="chat-input" aria-label="${t('Ask when, where, or whom to sell to...')}" autocomplete="off" placeholder="${t('Ask when, where, or whom to sell to...')}" class="flex-1 border border-border rounded-full px-4 py-3 bg-card" />
+        <button type="button" id="mic-btn" aria-label="${t('Speak your question')}" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('mic', 'w-5 h-5')}</button>
+        <button type="submit" aria-label="${t('Send')}" class="w-11 h-11 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">${icon('send', 'w-4 h-4')}</button>
       </form>
     </div>
   `);
@@ -3187,6 +3212,7 @@ function renderAssistant() {
 
     function styleMuteBtn() {
       const muted = store.get().voiceEnabled === false;
+      muteBtn.setAttribute('aria-checked', String(!muted));
       muteBtn.innerHTML = icon(muted ? 'volumeOff' : 'volume', 'w-5 h-5');
       muteBtn.className = `w-10 h-10 rounded-full border flex items-center justify-center transition shrink-0 ${muted ? 'border-border text-muted-foreground' : 'border-primary/40 text-primary bg-primary-light'}`;
     }

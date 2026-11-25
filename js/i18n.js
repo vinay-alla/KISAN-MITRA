@@ -26,6 +26,9 @@ export const DICT = {
 
   'More': { hi: 'और', mr: 'आणखी' },
 
+  'Speak your question': { hi: 'अपना सवाल बोलें', mr: 'तुमचा प्रश्न बोला' },
+  'Send': { hi: 'भेजें', mr: 'पाठवा' },
+
   // grievances
   'Grievances': { hi: 'शिकायतें', mr: 'तक्रारी' },
   'Raise an issue with an order, payment or buyer and track it to resolution': { hi: 'ऑर्डर, भुगतान या खरीदार की समस्या दर्ज करें और समाधान तक ट्रैक करें', mr: 'ऑर्डर, पेमेंट किंवा खरेदीदाराची समस्या नोंदवा आणि निराकरणापर्यंत मागोवा घ्या' },

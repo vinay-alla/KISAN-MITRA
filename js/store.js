@@ -65,7 +65,15 @@ function load() {
 let state = load();
 
 function persist() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (e) {
+    // Quota exceeded or storage blocked: the app keeps working in memory, but tell the user
+    // their changes won't survive a reload (app.js listens for this).
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('km:storage-failed'));
+    }
+  }
 }
 
 export const store = {

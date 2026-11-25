@@ -195,6 +195,13 @@ window.addEventListener('error', (e) => {
 });
 window.addEventListener('unhandledrejection', (e) => reportRuntimeError(e.reason));
 
+let storageWarned = false;
+window.addEventListener('km:storage-failed', () => {
+  if (storageWarned) return;
+  storageWarned = true;
+  toast('Your browser could not save the latest changes (storage is full or blocked). They will be lost when you close this tab.', { tone: 'error' });
+});
+
 // Escape closes the mobile menu (modals handle Escape themselves).
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && (menuOpen || moreOpen)) {
