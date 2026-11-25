@@ -326,16 +326,16 @@ function wireLocateButton(btn, onResolved) {
 
 function renderHome() {
   const farmer = currentFarmer();
-  const lot = D.LOTS[0];
+  const lot = findLot(D.LOTS[0].id) || D.LOTS[0];
   const options = getOptions(lot);
   const best = options.find((o) => o.best) || options[0];
   const status = effectiveStatus(lot);
   const alreadyAccepted = !!store.getAcceptedOption(lot.id);
   const acceptedAt = store.getOfferAcceptedAt(lot.id);
-  const msLeft = acceptedAt ? acceptedAt + 24 * 60 * 60 * 1000 - Date.now() : 0;
-  const canCancelOffer = alreadyAccepted && msLeft > 0;
-  const hoursLeft = Math.floor(msLeft / 3600000);
-  const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+  const cancelWin = offerCancelWindow(acceptedAt);
+  const canCancelOffer = alreadyAccepted && cancelWin.canCancel;
+  const hoursLeft = cancelWin.hours;
+  const minsLeft = cancelWin.mins;
 
   const html = `<div class="page-photo-bg"></div>` + pageWrap(`
     <div class="relative z-10 px-4 md:px-6 pt-6 flex items-start justify-between">
@@ -484,21 +484,30 @@ function renderHome() {
         <div class="p-5">
           <h3 class="font-extrabold text-lg mb-3">Edit Produce Lot</h3>
           <label class="text-xs font-bold text-muted-foreground">Quantity (${lot.unit})</label>
-          <input id="el-qty" type="number" value="${lot.quantity}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
+          <input id="el-qty" type="number" min="1" value="${esc(lot.quantity)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
           <label class="text-xs font-bold text-muted-foreground">Grade</label>
           <select id="el-grade" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-4">
             <option ${lot.grade === 'Premium Quality' ? 'selected' : ''}>Premium Quality</option>
             <option ${lot.grade === 'Grade A' ? 'selected' : ''}>Grade A</option>
             <option ${lot.grade === 'Grade B' ? 'selected' : ''}>Grade B</option>
           </select>
+          <p class="text-xs text-destructive font-semibold min-h-[1rem] mb-2" data-form-error role="alert"></p>
           <div class="flex gap-2">
             <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
             <button id="save-lot" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Save</button>
           </div>
         </div>`, {
         onMount: (m) => m.querySelector('#save-lot').addEventListener('click', () => {
+          const qty = toNumber(m.querySelector('#el-qty').value, 0);
+          const grade = m.querySelector('#el-grade').value;
+          if (!(qty > 0) || qty > 100000) { m.querySelector('[data-form-error]').textContent = 'Enter a quantity between 1 and 100,000 quintals.'; m.querySelector('#el-qty').focus(); return; }
+          // Demo lots live in data.js; saving copies the lot into the farmer's own list (which wins in findLot).
+          const mine = store.get().lots || [];
+          const edited = { ...lot, quantity: qty, grade };
+          store.set({ lots: mine.some((l) => l.id === lot.id) ? mine.map((l) => (l.id === lot.id ? edited : l)) : [edited, ...mine] });
           closeModal();
           toast('Lot updated', { tone: 'success', icon: 'checkCircle' });
+          navigateTo('#/', true);
         }),
       });
     });
@@ -712,6 +721,7 @@ function renderLots() {
             <input type="file" accept="image/*" id="nl-photo-input" class="hidden" />
             <img id="nl-photo-preview" class="hidden w-full max-h-32 object-cover rounded-xl mt-2" />
           </div>
+          <p class="text-xs text-destructive font-semibold min-h-[1rem] mb-2" data-form-error role="alert"></p>
           <div class="flex gap-2">
             <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
             <button id="create-lot-submit" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Create Lot</button>
@@ -734,11 +744,13 @@ function renderLots() {
 
           m.querySelector('#create-lot-submit').addEventListener('click', () => {
             const crop = m.querySelector('#nl-crop').value;
-            const qty = Number(m.querySelector('#nl-qty').value) || 1;
+            const qty = toNumber(m.querySelector('#nl-qty').value, 0);
             const grade = m.querySelector('#nl-grade').value;
             const date = m.querySelector('#nl-date').value;
-            const location = m.querySelector('#nl-location').value.trim() || currentFarmer().location;
-            const id = 'LOT-' + Math.floor(1000 + Math.random() * 9000);
+            const location = m.querySelector('#nl-location').value.trim().slice(0, 80) || currentFarmer().location;
+            if (!(qty > 0) || qty > 100000) { m.querySelector('[data-form-error]').textContent = 'Enter a quantity between 1 and 100,000 quintals.'; m.querySelector('#nl-qty').focus(); return; }
+            let id;
+            do { id = 'LOT-' + Math.floor(1000 + Math.random() * 9000); } while (findLot(id));
             const newLot = {
               id, crop, quantity: qty, unit: 'Quintals', grade, location,
               harvestDate: date ? new Date(date).toDateString().slice(4) : 'Not set',
@@ -2288,17 +2300,21 @@ function renderBrowseLots() {
             <h3 class="font-extrabold text-lg mb-1">${bidding ? 'Place a Bid' : 'Make an Offer'}</h3>
             <p class="text-sm text-muted-foreground mb-4">${lot.crop} · ${lot.quantity} ${lot.unit} from ${esc(lot.farmer)}${bidding ? ' — visible to the farmer alongside other buyers’ bids' : ''}</p>
             <label class="text-xs font-bold text-muted-foreground">${bidding ? 'Your Bid Price (per quintal)' : 'Your Offer Price (per quintal)'}</label>
-            <input id="offer-price" type="number" value="${lot.askingPrice}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
+            <input id="offer-price" type="number" min="1" value="${esc(lot.askingPrice)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
             <label class="text-xs font-bold text-muted-foreground">Quantity Required (${lot.unit})</label>
-            <input id="offer-qty" type="number" value="${lot.quantity}" max="${lot.quantity}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-4" />
+            <input id="offer-qty" type="number" min="1" value="${esc(lot.quantity)}" max="${esc(lot.quantity)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-2" />
+            <p class="text-xs text-destructive font-semibold min-h-[1rem] mb-2" data-form-error role="alert"></p>
             <div class="flex gap-2">
               <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
               <button id="send-offer" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">${bidding ? 'Submit Bid' : 'Send Offer'}</button>
             </div>
           </div>`, {
           onMount: (m) => m.querySelector('#send-offer').addEventListener('click', () => {
-            const price = Number(m.querySelector('#offer-price').value) || lot.askingPrice;
-            const qty = Number(m.querySelector('#offer-qty').value) || lot.quantity;
+            const price = toNumber(m.querySelector('#offer-price').value, 0);
+            const qty = toNumber(m.querySelector('#offer-qty').value, 0);
+            const errEl = m.querySelector('[data-form-error]');
+            if (!(price > 0)) { errEl.textContent = 'Enter a price above zero.'; m.querySelector('#offer-price').focus(); return; }
+            if (!(qty > 0) || qty > lot.quantity) { errEl.textContent = `Enter a quantity between 1 and ${lot.quantity} ${lot.unit}.`; m.querySelector('#offer-qty').focus(); return; }
             store.addOffer({
               id: 'OFR-' + Math.floor(1000 + Math.random() * 9000),
               lotId: lot.id, farmerLotId: lot.farmerLotId || null, crop: lot.crop, farmer: lot.farmer, quantity: qty, unit: lot.unit,
