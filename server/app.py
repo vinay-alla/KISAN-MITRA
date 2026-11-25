@@ -1,6 +1,7 @@
 """HTTP server: request dispatch, auth, static files, error handling and logging."""
 import json
 import mimetypes
+import queue
 import secrets
 import sys
 import threading
@@ -9,10 +10,11 @@ import urllib.parse
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import routes_auth, routes_community, routes_market  # noqa: F401  (importing registers the routes)
+from . import routes_ai, routes_auth, routes_community, routes_market  # noqa: F401  (importing registers the routes)
 from .config import ROOT, Config
 from .core import ROUTER, Ctx, admin_ok
 from .db import Database
+from .events import EventHub, discard_events, take_events
 from .security import RateLimiter, TokenSigner, hash_password
 from .seed import seed_catalogue, seed_demo_users
 from .util import ApiError, now_ms
@@ -37,6 +39,7 @@ class App:
             self.db.set_meta('signing_secret', secret)
         self.signer = TokenSigner(secret)
         self.limiter = RateLimiter()
+        self.hub = EventHub()
         self.dummy_hash = hash_password('not-a-real-password')
         seed_catalogue(self.db)
         if self.cfg.demo_mode:
@@ -75,11 +78,30 @@ class App:
             self.authenticate(ctx)
             if roles and ctx.user['role'] not in roles:
                 raise ApiError(403, 'forbidden', f"This action is only available to: {', '.join(roles)}.")
-        result = fn(ctx)
+        try:
+            result = fn(ctx)
+        except BaseException:
+            discard_events()          # nothing committed, so nothing to announce
+            raise
+        self._publish(ctx)
         status = 200
         if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], int):
             status, result = result
         return status, result
+
+
+    def _publish(self, ctx: Ctx):
+        for event_type, data, user_id, role in take_events():
+            self.hub.publish(event_type, data, user_id=user_id, role=role)
+        if ctx.method == 'GET':
+            return
+        # Broadcast "something you may be looking at changed" hints; clients re-read via /api/sync.
+        if ctx.path.startswith(('/api/lots', '/api/offers')):
+            self.hub.publish('market', {}, role='buyer')
+        elif ctx.path.startswith('/api/pools'):
+            self.hub.publish('pools', {})
+        elif ctx.path.startswith('/api/trips'):
+            self.hub.publish('trips', {})
 
 
 def _static_path(url_path: str):
@@ -174,7 +196,66 @@ def make_handler(app: App):
                     ms = (time.time() - started) * 1000
                     sys.stderr.write(f'{self._rid} {self.client_address[0]} {method} {parsed.path} -> {self._status} {ms:.0f}ms\n')
 
+        def _client_ip(self):
+            if cfg.trust_proxy:
+                fwd = self.headers.get('X-Forwarded-For', '')
+                if fwd:
+                    return fwd.split(',')[0].strip()[:45]
+            return self.client_address[0]
+
+        def _stream(self, parsed):
+            """Server-Sent Events: holds the connection open and pushes events for one user."""
+            ticket = (urllib.parse.parse_qs(parsed.query).get('ticket') or [''])[0]
+            payload = app.signer.verify(ticket)
+            if not payload or payload.get('typ') != 'stream':
+                raise ApiError(401, 'invalid_ticket', 'Stream ticket is missing or expired.')
+            sess = app.db.one('SELECT * FROM sessions WHERE id = ?', (payload.get('sid'),))
+            user = app.db.one('SELECT id, role FROM users WHERE id = ?', (payload.get('sub'),))
+            if not sess or sess['revoked'] or sess['expires_at'] < now_ms() or not user:
+                raise ApiError(401, 'invalid_ticket', 'Session is no longer valid.')
+            q = app.hub.subscribe(user['id'], user['role'])
+            if q is None:
+                raise ApiError(429, 'too_many_streams', 'Too many open live connections for this account.')
+            self.close_connection = True
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Connection', 'close')
+            self.send_header('X-Accel-Buffering', 'no')   # nginx: don't buffer the stream
+            for k, v in SECURITY_HEADERS.items():
+                self.send_header(k, v)
+            self._cors()
+            self.end_headers()
+            self._status = 200
+            try:
+                self.wfile.write(b'retry: 3000\n\n')
+                self._emit('hello', {'online': sum(app.hub.online().values())})
+                while True:
+                    try:
+                        event_type, data, ts = q.get(timeout=15)
+                    except queue.Empty:
+                        self.wfile.write(b': ping\n\n')   # keeps proxies from idling the connection out
+                        self.wfile.flush()
+                        continue
+                    self._emit(event_type, data)
+                    # Re-check the session now and then so a logged-out tab stops receiving data.
+                    if event_type in ('notification',) or time.time() % 60 < 1:
+                        s2 = app.db.one('SELECT revoked, expires_at FROM sessions WHERE id = ?', (payload.get('sid'),))
+                        if not s2 or s2['revoked'] or s2['expires_at'] < now_ms():
+                            return
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                pass
+            finally:
+                app.hub.unsubscribe(user['id'], q)
+                self._status = 499
+
+        def _emit(self, event_type, data):
+            self.wfile.write(f'event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'.encode())
+            self.wfile.flush()
+
         def _api(self, method, parsed):
+            if parsed.path == '/api/stream' and method == 'GET':
+                return self._stream(parsed)
             length = int(self.headers.get('Content-Length') or 0)
             if length > cfg.max_body:
                 self.close_connection = True
@@ -182,7 +263,7 @@ def make_handler(app: App):
             raw = self.rfile.read(length) if length else b''
             headers = {k.lower(): v for k, v in self.headers.items()}
             ctx = Ctx(app=app, method=method, path=parsed.path.rstrip('/') or '/', query=urllib.parse.parse_qs(parsed.query),
-                      headers=headers, ip=self.client_address[0], raw_body=raw)
+                      headers=headers, ip=self._client_ip(), raw_body=raw)
             if method in ('POST', 'PUT', 'PATCH') and raw and 'json' not in headers.get('content-type', '').lower():
                 raise ApiError(415, 'unsupported_media_type', 'Content-Type must be application/json.')
             status, result = app.handle(ctx)
@@ -213,9 +294,20 @@ def make_handler(app: App):
     return Handler
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = 128
+
+    def handle_error(self, request, client_address):
+        # Clients that vanish mid-request (closed tab, dropped phone connection) are routine, not errors.
+        if isinstance(sys.exc_info()[1], (ConnectionError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def create_server(cfg: Config | None = None, host='127.0.0.1', port=8800):
     app = App(cfg)
-    httpd = ThreadingHTTPServer((host, port), make_handler(app))
+    httpd = Server((host, port), make_handler(app))
     httpd.daemon_threads = True
     httpd.app = app
     return httpd

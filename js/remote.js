@@ -9,7 +9,7 @@ import { store, onStoreAction } from './store.js';
 import { toast } from './ui.js';
 import * as D from './data.js';
 
-const POLL_MS = 15000;
+const POLL_MS = 60000;   // safety net only: the live stream below is the primary channel
 let queue = Promise.resolve();
 let pending = 0;
 let pullTimer = null;
@@ -115,6 +115,66 @@ function enqueue(type, payload) {
     .finally(() => { pending -= 1; if (pending === 0) schedulePull(); });
 }
 
+/* ---------- live stream (Server-Sent Events) ---------- */
+
+let source = null;
+let retryTimer = null;
+let retryDelay = 2000;
+let live = false;
+export const isLive = () => live;
+
+function setLive(on) {
+  if (live === on) return;
+  live = on;
+  window.dispatchEvent(new CustomEvent('km:live', { detail: on }));
+}
+
+export async function connectLive() {
+  disconnectLive();
+  if (!isRemote() || typeof EventSource !== 'function') return;
+  try {
+    const { ticket } = await api.post('api/stream/ticket', {});
+    // Relative URL, like every other API call (works at a domain root or behind a sub-path proxy).
+    const base = (() => { try { return localStorage.getItem('kisanmitra:apiBase') || ''; } catch { return ''; } })().replace(/\/+$/, '');
+    source = new EventSource(`${base ? base + '/' : './'}api/stream?ticket=${encodeURIComponent(ticket)}`);
+  } catch {
+    scheduleReconnect();
+    return;
+  }
+  source.addEventListener('hello', () => { setLive(true); retryDelay = 2000; schedulePullNotify(0); });
+  // Anything another person did that we might be showing: re-read, and re-render if it changed.
+  for (const type of ['market', 'pools', 'trips', 'resync']) source.addEventListener(type, () => schedulePullNotify());
+  source.addEventListener('notification', (e) => {
+    try {
+      const n = JSON.parse(e.data);
+      toast(n.title, { icon: 'bell' });
+    } catch { /* ignore malformed event */ }
+    store.set({ remote: { ...store.get().remote, unread: (store.get().remote.unread || 0) + 1 } });
+    window.dispatchEvent(new CustomEvent('km:unread'));
+    schedulePullNotify();
+  });
+  // EventSource retries by itself, but our one-minute ticket would be stale: reconnect with a fresh one.
+  source.onerror = () => { setLive(false); disconnectLive(false); scheduleReconnect(); };
+}
+
+export function disconnectLive(clearRetry = true) {
+  if (source) { source.close(); source = null; }
+  if (clearRetry) clearTimeout(retryTimer);
+  setLive(false);
+}
+
+function scheduleReconnect() {
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => { if (isRemote()) connectLive(); }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, 30000);
+}
+
+let notifyTimer = null;
+function schedulePullNotify(delay = 250) {
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => { if (pending === 0) pull({ notify: true }).catch(() => {}); else schedulePullNotify(400); }, delay);
+}
+
 /* ---------- lifecycle ---------- */
 
 export async function initRemote() {
@@ -124,6 +184,7 @@ export async function initRemote() {
   api.onUnauthorized(() => endSession(true));
   await api.detect();
   if (isRemote()) {
+    connectLive();
     try { await pull(); } catch (e) { if (!(e instanceof ApiError) || e.status !== 401) console.error('initial sync failed', e); }
   } else if (api.online && store.get().user && !api.token) {
     // Signed in locally from an earlier offline session, but a backend is available now: keep working locally.
@@ -142,6 +203,7 @@ export async function remoteLogin({ phone, password, role }) {
   store.clearUserData();
   store.login(user);
   await pull();
+  connectLive();
   return user;
 }
 
@@ -151,12 +213,14 @@ export async function remoteRegister(fields) {
   store.clearUserData();
   store.login(user);
   await pull();
+  connectLive();
   return user;
 }
 
 // Sign-out (or session expiry). Best-effort revoke on the server, then wipe local copies of server data.
 export async function endSession(expired = false) {
   const hadToken = !!api.token;
+  disconnectLive();
   if (hadToken && !expired) { try { await api.post('api/auth/logout'); } catch { /* already gone */ } }
   api.setToken(null);
   if (hadToken) store.clearUserData(); else store.logout();

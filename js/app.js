@@ -9,7 +9,7 @@ import { store } from './store.js';
 import { t, currentLangCode } from './i18n.js';
 import { esc } from './util.js';
 import { canAccess } from './logic.js';
-import { initRemote, isRemote, fetchNotifications, markNotificationsRead } from './remote.js';
+import { initRemote, isRemote, isLive, fetchNotifications, markNotificationsRead } from './remote.js';
 
 const headerEl = document.getElementById('app-header');
 const mainEl = document.getElementById('app-main');
@@ -70,6 +70,7 @@ function renderHeader(path) {
       </nav>
 
       <div class="flex items-center gap-2 shrink-0">
+        <span id="live-badge" title="${t('Live updates connected')}" class="${isRemote() && isLive() ? '' : 'hidden'} items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 rounded-full px-2 py-1 hidden sm:inline-flex"><span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>${t('Live')}</span>
         <button id="bell-toggle" aria-label="Market alerts" class="relative w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
           ${iconFilled('bell', 'w-5 h-5')}
           ${!isRemote() || store.get().remote.unread > 0 ? '<span class="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-destructive"></span>' : ''}
@@ -301,6 +302,12 @@ setNavigator((hash) => {
   if (location.hash === hash) { render(); return; }
   location.hash = hash;
 });
+
+window.addEventListener('km:live', (e) => {
+  const badge = document.getElementById('live-badge');
+  if (badge) badge.classList.toggle('hidden', !e.detail);
+});
+window.addEventListener('km:unread', () => { if (currentPath() !== '/login') renderHeader(currentPath()); });
 
 // Someone else's action (a new bid, an accepted offer, a filled pool) changed our data: refresh the
 // page, unless the user is mid-way through typing or has a dialog open.

@@ -28,7 +28,16 @@ def _user_by_id(ctx, uid):
 
 @route('GET', '/api/health', auth='none')
 def health(ctx):
-    return {'status': 'ok', 'time': iso(now_ms()), 'demoMode': ctx.cfg.demo_mode, 'liveMandi': bool(ctx.cfg.mandi_api_key)}
+    return {'status': 'ok', 'time': iso(now_ms()), 'demoMode': ctx.cfg.demo_mode, 'liveMandi': bool(ctx.cfg.mandi_api_key),
+            'ai': bool(ctx.cfg.ai_key), 'realtime': True, 'online': sum(ctx.app.hub.online().values())}
+
+
+@route('POST', '/api/stream/ticket')
+def stream_ticket(ctx):
+    """EventSource can't send an Authorization header, so it authenticates with a short-lived single-purpose ticket
+    (rather than putting the long-lived session token in a URL that proxies and logs record)."""
+    exp = int(now_ms() / 1000) + 60
+    return {'ticket': ctx.app.signer.sign({'sub': ctx.user['id'], 'typ': 'stream', 'sid': ctx.session_id, 'exp': exp}), 'expiresIn': 60}
 
 
 @route('GET', '/api/catalog', auth='none')

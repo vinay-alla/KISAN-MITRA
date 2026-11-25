@@ -34,6 +34,9 @@ export const DICT = {
   '🔔 Your notifications': { hi: '🔔 आपकी सूचनाएँ', mr: '🔔 तुमच्या सूचना' },
   'No new notifications.': { hi: 'कोई नई सूचना नहीं।', mr: 'नवीन सूचना नाहीत.' },
 
+  'Live': { hi: 'लाइव', mr: 'लाइव्ह' },
+  'Live updates connected': { hi: 'लाइव अपडेट जुड़े हैं', mr: 'लाइव्ह अपडेट जोडलेले आहेत' },
+
   // grievances
   'Grievances': { hi: 'शिकायतें', mr: 'तक्रारी' },
   'Raise an issue with an order, payment or buyer and track it to resolution': { hi: 'ऑर्डर, भुगतान या खरीदार की समस्या दर्ज करें और समाधान तक ट्रैक करें', mr: 'ऑर्डर, पेमेंट किंवा खरेदीदाराची समस्या नोंदवा आणि निराकरणापर्यंत मागोवा घ्या' },

@@ -9,7 +9,7 @@ import { api } from './api.js';
 import { pull as pullNow, allLots, allOrders, marketLots, livePools, liveTrips, isRemote, remoteLogin, remoteRegister, endSession } from './remote.js';
 import {
   getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
-  offerCancelWindow, storageEconomics, compareHoldPeriods, poolStatus, sharedTripCost,
+  QUALITY_FACTORS, offerCancelWindow, storageEconomics, compareHoldPeriods, poolStatus, sharedTripCost,
   validateGrievance, nextGrievanceStatus, GRIEVANCE_TYPES, GRIEVANCE_STATUSES,
 } from './logic.js';
 
@@ -2032,6 +2032,7 @@ function renderQualityCheck() {
     input.addEventListener('change', async () => {
       const file = input.files[0];
       if (!file) return;
+      if (!file.type.startsWith('image/')) { toast('Please choose an image file.', { tone: 'error', icon: 'camera' }); return; }
       const dataUrl = await readAsDataUrl(file);
       resultArea.innerHTML = `
         <div class="card p-4">
@@ -2041,8 +2042,34 @@ function renderQualityCheck() {
             Grading produce quality...
           </div>
         </div>`;
-      setTimeout(() => {
-        const factors = gradeQualityFactors(file);
+      // Real vision grading when the server has AI enabled; otherwise the labelled demo simulation.
+      let factors;
+      let aiNote = '';
+      let source = 'sim';
+      if (isRemote() && api.ai) {
+        try {
+          const image = await compactImageDataUrl(file, 1000, 0.8);
+          if (!image) throw new Error('That photo is too large to analyse. Try a smaller one.');
+          const r = await api.post('api/ai/grade', { image });
+          factors = QUALITY_FACTORS.map((f) => {
+            const x = r.factors[f.key];
+            return { ...f, score: x.score, status: x.score >= 85 ? 'pass' : 'warn', passNote: x.note || f.passNote, warnNote: x.note || f.warnNote };
+          });
+          aiNote = r.summary || '';
+          source = 'ai';
+        } catch (e) {
+          if (e.code === 'not_produce' || e.code === 'ai_quota') {
+            resultArea.innerHTML = `<div class="card p-4"><img src="${dataUrl}" class="w-full max-h-64 object-cover rounded-xl mb-4" /><p class="text-sm font-semibold text-destructive" role="alert">${esc(e.message)}</p></div>`;
+            return;
+          }
+          toast(`${e.message || 'AI grading failed'} Showing the demo estimate instead.`, { tone: 'error', icon: 'alert' });
+        }
+      }
+      if (!factors) {
+        await new Promise((r) => setTimeout(r, 900));
+        factors = gradeQualityFactors(file);
+      }
+      {
         const grade = overallGradeFrom(factors);
         const passCount = factors.filter((f) => f.status === 'pass').length;
         resultArea.innerHTML = `
@@ -2055,6 +2082,8 @@ function renderQualityCheck() {
                 <div class="text-sm text-muted-foreground">${passCount}/${factors.length} ${t('checks passed')}</div>
               </div>
             </div>
+            <div class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full mt-3 ${source === 'ai' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}">${icon(source === 'ai' ? 'zap' : 'info', 'w-3 h-3')}${source === 'ai' ? t('Graded by Claude from your photo') : t('Demo estimate — not from image analysis')}</div>
+            ${aiNote ? `<p class="text-sm mt-2">${esc(aiNote)}</p>` : ''}
             <div class="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mt-4 mb-1">${t('AI Compliance Breakdown')}</div>
             <div>
               ${factors.map(qualityFactorRowHtml).join('')}
@@ -2063,7 +2092,7 @@ function renderQualityCheck() {
             <a href="#/lots" class="w-full inline-flex items-center justify-center border border-primary text-primary font-bold py-2.5 rounded-xl hover:bg-primary-light transition">Create Lot with This Grade</a>
           </div>`;
         toast('Grading complete', { tone: 'success', icon: 'checkCircle' });
-      }, 1400);
+      }
     });
   }
 
@@ -3253,7 +3282,7 @@ function renderAssistant() {
   function bubble(msg) {
     const isBot = msg.role === 'bot';
     return `<div class="chat-bubble-in flex ${isBot ? 'justify-start' : 'justify-end'}">
-      <div class="max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isBot ? 'bg-primary-light text-foreground rounded-tl-sm' : 'bg-primary text-primary-foreground rounded-tr-sm'}">${esc(msg.text).replace(/\n/g, '<br>')}</div>
+      <div class="max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isBot ? 'bg-primary-light text-foreground rounded-tl-sm' : 'bg-primary text-primary-foreground rounded-tr-sm'}">${esc(msg.text).replace(/\n/g, '<br>')}${msg.ai ? `<div class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-primary/80">${icon('zap', 'w-3 h-3')}AI</div>` : ''}</div>
     </div>`;
   }
 
@@ -3309,15 +3338,26 @@ function renderAssistant() {
       const typingId = 'typing-' + Date.now();
       log.insertAdjacentHTML('beforeend', `<div id="${typingId}" class="chat-bubble-in flex justify-start"><div class="bg-primary-light rounded-2xl rounded-tl-sm px-4 py-3 text-sm flex gap-1"><span class="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce"></span><span class="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style="animation-delay:.15s"></span><span class="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style="animation-delay:.3s"></span></div></div>`);
       log.scrollTop = log.scrollHeight;
-      setTimeout(() => {
+      const deliver = (replyText, ai = false) => {
         document.getElementById(typingId)?.remove();
-        const replyText = botReply(text);
-        const botMsg = { role: 'bot', text: replyText };
+        const botMsg = { role: 'bot', text: replyText, ...(ai ? { ai: true } : {}) };
         store.addChat(botMsg);
         log.insertAdjacentHTML('beforeend', bubble(botMsg));
         log.scrollTop = log.scrollHeight;
         speak(replyText);
-      }, 900);
+      };
+      if (isRemote() && api.ai) {
+        // Real answers from Claude, grounded in the user's own lots and the market data on the server.
+        const history = store.get().chat.slice(-9, -1).map((m) => ({ role: m.role === 'bot' ? 'assistant' : 'user', text: m.text }));
+        api.post('api/ai/chat', { message: text.slice(0, 800), history })
+          .then((r) => deliver(r.reply, true))
+          .catch((e) => {
+            if (e.code === 'ai_quota') toast(e.message, { tone: 'error', icon: 'alert' });
+            deliver(botReply(text));   // never leave the user without an answer
+          });
+      } else {
+        setTimeout(() => deliver(botReply(text)), 900);
+      }
     }
 
     const pending = sessionStorage.getItem('km:pending-query');

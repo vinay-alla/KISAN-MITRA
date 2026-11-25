@@ -16,7 +16,7 @@ export class ApiError extends Error {
   }
 }
 
-const mode = { online: false, demoMode: false, liveMandi: false };
+const mode = { online: false, demoMode: false, liveMandi: false, ai: false };
 let onUnauthorized = null;
 
 function safeGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
@@ -30,6 +30,7 @@ export const api = {
   get online() { return mode.online; },
   get demoMode() { return mode.demoMode; },
   get liveMandi() { return mode.liveMandi; },
+  get ai() { return mode.ai; },
   get token() { return safeGet(TOKEN_KEY); },
   setToken(token) { safeSet(TOKEN_KEY, token || null); },
   onUnauthorized(fn) { onUnauthorized = fn; },
@@ -45,6 +46,7 @@ export const api = {
       mode.online = !!body && body.status === 'ok';
       mode.demoMode = !!body?.demoMode;
       mode.liveMandi = !!body?.liveMandi;
+      mode.ai = !!body?.ai;
     } catch {
       mode.online = false;
     } finally {

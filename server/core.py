@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass, field
 
 from .db import loads
+from .events import queue_event
 from .util import ApiError, bad, display_date, iso, now_ms
 
 
@@ -101,6 +102,8 @@ def notify(conn, user_id, kind, title, body='', link=''):
     if user_id:
         conn.execute('INSERT INTO notifications(user_id, kind, title, body, link, created_at) VALUES (?,?,?,?,?,?)',
                      (user_id, kind, title, body, link, now_ms()))
+        # Delivered live over SSE once the request's transaction has committed (see events.py).
+        queue_event('notification', {'kind': kind, 'title': title, 'body': body, 'link': link}, user_id=user_id)
 
 
 def require_role(ctx: Ctx, *roles):
