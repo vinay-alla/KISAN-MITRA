@@ -8,6 +8,7 @@ import { closeModal, openModal, toast } from './ui.js';
 import { store } from './store.js';
 import { t, currentLangCode } from './i18n.js';
 import { esc } from './util.js';
+import { api } from './api.js';
 import { canAccess } from './logic.js';
 import { initRemote, isRemote, isLive, fetchNotifications, markNotificationsRead } from './remote.js';
 
@@ -308,6 +309,56 @@ window.addEventListener('km:live', (e) => {
   if (badge) badge.classList.toggle('hidden', !e.detail);
 });
 window.addEventListener('km:unread', () => { if (currentPath() !== '/login') renderHeader(currentPath()); });
+
+// Pilot feedback: one modal for every page (the button lives on the profile screens).
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#feedback-btn')) return;
+  if (!isRemote()) { toast('Feedback is sent to the server, so it needs a connection to the Kisan Mitra backend.', { icon: 'info' }); return; }
+  let rating = 0;
+  openModal(`
+    <form class="p-5" id="fb-form" novalidate>
+      <h3 class="font-extrabold text-lg mb-1">${t('Send feedback')}</h3>
+      <p class="text-xs text-muted-foreground mb-3">${t('Tell us what worked, what broke or what confused you. We read every message.')}</p>
+      <div class="flex gap-1 mb-3" role="radiogroup" aria-label="${t('Rating')}">
+        ${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="false" data-rate="${n}" aria-label="${n}" class="fb-star w-10 h-10 rounded-xl border border-border font-extrabold text-lg text-muted-foreground transition">${n}</button>`).join('')}
+      </div>
+      <label for="fb-cat" class="text-xs font-bold text-muted-foreground">${t('Type')}</label>
+      <select id="fb-cat" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3">
+        <option value="Bug">${t('Something is broken')}</option><option value="Confusing">${t('Something is confusing')}</option>
+        <option value="Idea">${t('I have an idea')}</option><option value="Praise">${t('Something works well')}</option>
+      </select>
+      <label for="fb-msg" class="text-xs font-bold text-muted-foreground">${t('Your message')}</label>
+      <textarea id="fb-msg" rows="4" maxlength="2000" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1"></textarea>
+      <p id="fb-err" class="text-xs text-destructive font-semibold min-h-[1rem] mt-1 mb-2" role="alert"></p>
+      <div class="flex gap-2">
+        <button type="button" data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">${t('Cancel')}</button>
+        <button type="submit" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">${t('Send')}</button>
+      </div>
+    </form>`, {
+    onMount: (m) => {
+      m.querySelectorAll('[data-rate]').forEach((b) => b.addEventListener('click', () => {
+        rating = Number(b.dataset.rate);
+        m.querySelectorAll('[data-rate]').forEach((x) => {
+          const on = Number(x.dataset.rate) <= rating;
+          x.setAttribute('aria-checked', String(Number(x.dataset.rate) === rating));
+          x.className = `fb-star w-10 h-10 rounded-xl border font-extrabold text-lg transition ${on ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground'}`;
+        });
+      }));
+      m.querySelector('#fb-form').addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const err = m.querySelector('#fb-err');
+        const message = m.querySelector('#fb-msg').value.trim();
+        if (!rating) { err.textContent = t('Please pick a rating from 1 to 5.'); return; }
+        if (message.length < 5) { err.textContent = t('Please write at least a few words.'); return; }
+        try {
+          await api.post('api/feedback', { rating, category: m.querySelector('#fb-cat').value, message, page: location.hash.slice(0, 80) });
+          closeModal();
+          toast('Thank you — your feedback was sent.', { tone: 'success', icon: 'checkCircle' });
+        } catch (e) { err.textContent = e.message; }
+      });
+    },
+  });
+});
 
 // Someone else's action (a new bid, an accepted offer, a filled pool) changed our data: refresh the
 // page, unless the user is mid-way through typing or has a dialog open.

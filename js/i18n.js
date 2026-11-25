@@ -37,6 +37,18 @@ export const DICT = {
   'Live': { hi: 'लाइव', mr: 'लाइव्ह' },
   'Live updates connected': { hi: 'लाइव अपडेट जुड़े हैं', mr: 'लाइव्ह अपडेट जोडलेले आहेत' },
 
+  'Send feedback': { hi: 'प्रतिक्रिया भेजें', mr: 'अभिप्राय पाठवा' },
+  'Tell us what worked, what broke or what confused you. We read every message.': { hi: 'बताइए क्या ठीक चला, क्या टूटा या क्या उलझन भरा लगा। हम हर संदेश पढ़ते हैं।', mr: 'काय चांगले चालले, काय बिघडले किंवा काय गोंधळात टाकणारे वाटले ते सांगा. आम्ही प्रत्येक संदेश वाचतो.' },
+  'Rating': { hi: 'रेटिंग', mr: 'रेटिंग' },
+  'Type': { hi: 'प्रकार', mr: 'प्रकार' },
+  'Something is broken': { hi: 'कुछ टूटा हुआ है', mr: 'काहीतरी बिघडले आहे' },
+  'Something is confusing': { hi: 'कुछ उलझन भरा है', mr: 'काहीतरी गोंधळात टाकणारे आहे' },
+  'I have an idea': { hi: 'मेरे पास एक सुझाव है', mr: 'माझ्याकडे एक कल्पना आहे' },
+  'Something works well': { hi: 'कुछ अच्छा काम कर रहा है', mr: 'काहीतरी चांगले चालले आहे' },
+  'Your message': { hi: 'आपका संदेश', mr: 'तुमचा संदेश' },
+  'Please pick a rating from 1 to 5.': { hi: 'कृपया 1 से 5 के बीच रेटिंग चुनें।', mr: 'कृपया 1 ते 5 दरम्यान रेटिंग निवडा.' },
+  'Please write at least a few words.': { hi: 'कृपया कम से कम कुछ शब्द लिखें।', mr: 'कृपया किमान काही शब्द लिहा.' },
+
   // grievances
   'Grievances': { hi: 'शिकायतें', mr: 'तक्रारी' },
   'Raise an issue with an order, payment or buyer and track it to resolution': { hi: 'ऑर्डर, भुगतान या खरीदार की समस्या दर्ज करें और समाधान तक ट्रैक करें', mr: 'ऑर्डर, पेमेंट किंवा खरेदीदाराची समस्या नोंदवा आणि निराकरणापर्यंत मागोवा घ्या' },

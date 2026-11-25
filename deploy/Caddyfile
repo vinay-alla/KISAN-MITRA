@@ -1,0 +1,7 @@
+# Automatic HTTPS (Let's Encrypt) for the domain in $DOMAIN. SSE needs response flushing, which Caddy does by default.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy kisan-mitra:8800 {
+		flush_interval -1
+	}
+}

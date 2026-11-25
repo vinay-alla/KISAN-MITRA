@@ -2108,6 +2108,7 @@ function prototypeDisclaimerHtml() {
         ${icon('alert', 'w-4 h-4 text-muted-foreground shrink-0 mt-0.5')}
         <p class="text-[11px] text-muted-foreground leading-relaxed">${t('Prototype for SIH 2026 (Problem 26132)')} — ${t('Mandi prices, buyers, offers, orders and verification records shown in this app are illustrative mock data for demonstration, not live transactions.')}</p>
       </div>
+      <button id="feedback-btn" class="mt-2 w-full inline-flex items-center justify-center gap-1.5 bg-card/95 backdrop-blur border border-border text-sm font-bold py-2.5 rounded-xl hover:bg-muted transition shadow-soft">${icon('message', 'w-4 h-4')}${t('Send feedback')}</button>
     </div>`;
 }
 

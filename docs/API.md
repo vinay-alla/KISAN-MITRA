@@ -94,3 +94,10 @@ python -m unittest discover -s server/tests -t .     # 40 API tests
 - Responses carry `nosniff`, `X-Frame-Options: DENY` and a strict referrer policy; API responses are `no-store`.
 - Not included (deliberately out of prototype scope): TLS (put it behind a reverse proxy), email/SMS OTP,
   a CSP (the app loads Tailwind from a CDN), password-reset, and real payment rails.
+
+## Real-time, AI and operations (added)
+
+- `POST /stream/ticket` → `{ticket}` (60 s, single purpose); `GET /stream?ticket=…` is a Server-Sent-Events stream. Events: `hello`, `notification` (private to the recipient), `market` (buyers), `pools`, `trips`, `resync`. Events are published only after the request that caused them has committed. Max 5 streams per user.
+- `GET /ai/status`, `POST /ai/chat {message, history?}`, `POST /ai/grade {image}` — Claude via the Anthropic Messages API; enabled by `ANTHROPIC_API_KEY` (503 `ai_disabled` otherwise). No name, phone or village is sent upstream. Hourly quota `KM_AI_PER_HOUR`.
+- `POST /feedback {rating 1-5, category, message, page?}`; admin: `GET /admin/feedback`.
+- Deploy: `Dockerfile`, `docker-compose.yml` (+ optional Caddy TLS profile), `render.yaml`, `.env.example`; `python scripts/backup.py` for consistent online backups; `python -m server.simulate --farmers 100 --buyers 80` for a concurrent-user consistency/load test.

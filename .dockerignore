@@ -1,0 +1,13 @@
+.git
+.github
+data
+node_modules
+tests
+docs/screenshots
+__pycache__
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+.env
+.claude

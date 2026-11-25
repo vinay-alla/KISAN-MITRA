@@ -324,6 +324,12 @@ def serve(host='127.0.0.1', port=8800):
     print('  live mandi prices: ' + ('enabled' if app.cfg.mandi_api_key else 'disabled (set DATA_GOV_IN_API_KEY)'))
     if app.cfg.admin_key:
         print('  admin API: enabled')
+    if app.cfg.demo_mode and host not in ('127.0.0.1', 'localhost', '::1'):
+        print('  WARNING: demo mode is on while listening on a public interface — set KM_DEMO_MODE=0 for real users.')
+    if app.cfg.ai_key:
+        print(f'  AI assistant: enabled ({app.cfg.ai_model})')
+    import signal
+    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))   # docker stop / platform restarts
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

@@ -379,6 +379,28 @@ class Admin(ApiTestCase):
         self.assertTrue(all('password' not in str(u) for u in users))
 
 
+class Feedback(ApiTestCase):
+    def test_feedback_validated_stored_and_visible_to_admin_only(self):
+        tok, _, _ = self.register('farmer')
+        for bad in [{}, {'rating': 0, 'category': 'Bug', 'message': 'long enough'}, {'rating': 6, 'category': 'Bug', 'message': 'long enough'},
+                    {'rating': 3, 'category': 'Nope', 'message': 'long enough'}, {'rating': 3, 'category': 'Bug', 'message': 'hey'},
+                    {'rating': 3, 'category': 'Bug', 'message': 'x' * 2001}, {'rating': 'five', 'category': 'Bug', 'message': 'long enough'}]:
+            self.err('POST', '/api/feedback', bad, tok)
+        self.err('POST', '/api/feedback', {'rating': 3, 'category': 'Bug', 'message': 'long enough'}, status=401)
+        self.ok('POST', '/api/feedback', {'rating': 4, 'category': 'Confusing', 'message': 'I could not find the shared trips tab.', 'page': '#/logistics'}, tok, status=201)
+        self.err('GET', '/api/admin/feedback', status=401)
+        s, d, _ = self.call('GET', '/api/admin/feedback', headers={'X-Admin-Key': 'test-admin'})
+        self.assertEqual(s, 200)
+        self.assertEqual(d['feedback'][0]['category'], 'Confusing')
+        self.assertEqual(d['feedback'][0]['page'], '#/logistics')
+
+    def test_feedback_rate_limited(self):
+        tok, _, _ = self.register('buyer')
+        for _ in range(10):
+            self.ok('POST', '/api/feedback', {'rating': 5, 'category': 'Praise', 'message': 'works nicely for me'}, tok, status=201)
+        self.err('POST', '/api/feedback', {'rating': 5, 'category': 'Praise', 'message': 'works nicely for me'}, tok, status=429)
+
+
 class ProductionMode(ApiTestCase):
     cfg_overrides = {'demo_mode': False}
 

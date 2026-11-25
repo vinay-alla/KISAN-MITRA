@@ -1,0 +1,25 @@
+# One-click deploy on Render (https://render.com): New → Blueprint → pick this repo.
+# The disk keeps the SQLite database across deploys. Set ANTHROPIC_API_KEY etc. in the dashboard.
+services:
+  - type: web
+    name: kisan-mitra
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: kisan-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: KM_DEMO_MODE
+        value: "0"
+      - key: KM_TRUST_PROXY
+        value: "1"
+      - key: KM_DB_PATH
+        value: /data/kisanmitra.db
+      - key: KM_SECRET
+        generateValue: true
+      - key: KM_ADMIN_KEY
+        generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false

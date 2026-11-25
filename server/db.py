@@ -198,6 +198,18 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read_at);
 
+CREATE TABLE IF NOT EXISTS feedback (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  role       TEXT,
+  rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  category   TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  page       TEXT,
+  user_agent TEXT,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   at        INTEGER NOT NULL,

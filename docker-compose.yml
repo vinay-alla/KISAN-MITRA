@@ -1,0 +1,33 @@
+# docker compose up -d      → http://localhost:8800  (put a TLS proxy in front for the internet)
+# Copy .env.example to .env and fill in the secrets first.
+services:
+  kisan-mitra:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8800:8800"
+    env_file: .env
+    environment:
+      KM_DB_PATH: /data/kisanmitra.db
+    volumes:
+      - kisan-data:/data
+
+  # Optional: automatic HTTPS. Set DOMAIN in .env, then `docker compose --profile tls up -d`.
+  caddy:
+    image: caddy:2
+    profiles: ["tls"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - kisan-mitra
+
+volumes:
+  kisan-data:
+  caddy-data:

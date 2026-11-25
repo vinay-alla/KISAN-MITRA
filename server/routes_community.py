@@ -270,6 +270,30 @@ def mark_read(ctx):
     return {'ok': True}
 
 
+# ------------------------------------------------------------------ pilot feedback
+
+FEEDBACK_CATEGORIES = ('Bug', 'Idea', 'Praise', 'Confusing')
+
+
+@route('POST', '/api/feedback')
+def send_feedback(ctx):
+    """Lets pilot users tell us what broke or confused them, with the page they were on."""
+    key = f"feedback|{ctx.user['id']}"
+    wait = ctx.app.limiter.blocked_for(key, 10, 3600)
+    if wait:
+        raise ApiError(429, 'rate_limited', 'Thanks! You have sent a lot of feedback recently — please try again later.', headers={'Retry-After': str(wait)})
+    b = ctx.body()
+    rating = number(b.get('rating'), 'rating', minimum=1, maximum=5, integer=True)
+    if b.get('category') not in FEEDBACK_CATEGORIES:
+        raise bad('category must be one of: ' + ', '.join(FEEDBACK_CATEGORIES))
+    message = text(b.get('message'), 'Message', min_len=5, max_len=2000, collapse=False)
+    page = text(b.get('page'), 'Page', max_len=80, required=False)
+    ctx.app.limiter.hit(key, 3600)
+    ctx.db.conn().execute('INSERT INTO feedback(user_id, role, rating, category, message, page, user_agent, created_at) VALUES (?,?,?,?,?,?,?,?)',
+                          (ctx.user['id'], ctx.user['role'], rating, b['category'], message, page, ctx.headers.get('user-agent', '')[:200], now_ms()))
+    return 201, {'ok': True}
+
+
 # ------------------------------------------------------------------ live mandi prices (proxy, cached)
 
 MANDI_RESOURCE = '9ef84268-d588-465a-a308-a864a43d0070'
@@ -324,6 +348,14 @@ def admin_grievances(ctx):
 @route('POST', '/api/admin/grievances/<gid>/advance', auth='admin')
 def admin_advance(ctx):
     return {'grievance': _advance(ctx, ctx.params['gid'], None)}
+
+
+@route('GET', '/api/admin/feedback', auth='admin')
+def admin_feedback(ctx):
+    rows = ctx.db.all('SELECT * FROM feedback ORDER BY id DESC LIMIT 500')
+    return {'feedback': [{'id': r['id'], 'role': r['role'], 'rating': r['rating'], 'category': r['category'], 'message': r['message'], 'page': r['page'],
+                          'at': iso(r['created_at'])} for r in rows],
+            'averageRating': (ctx.db.one('SELECT AVG(rating) AS a FROM feedback')['a'] or 0)}
 
 
 @route('GET', '/api/admin/users', auth='admin')
