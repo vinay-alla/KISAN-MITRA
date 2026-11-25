@@ -18,6 +18,7 @@ export const FARMER_MORE_NAV = [
   { path: '#/history', label: 'Transaction History', icon: 'clipboard' },
   { path: '#/crop-suggestions', label: 'Next Season Crops', icon: 'sprout' },
   { path: '#/assistant', label: 'AI Assistant', icon: 'message' },
+  { path: '#/grievances', label: 'Grievances', icon: 'shield' },
 ];
 
 export const BUYER_BOTTOM_NAV = [
@@ -34,6 +35,7 @@ export const BUYER_MORE_NAV = [
   { path: '#/weather', label: 'Weather Forecast', icon: 'cloud-sun' },
   { path: '#/history', label: 'Transaction History', icon: 'clipboard' },
   { path: '#/assistant', label: 'AI Assistant', icon: 'message' },
+  { path: '#/grievances', label: 'Grievances', icon: 'shield' },
 ];
 
 export const FPO_OPERATOR_BOTTOM_NAV = [
@@ -49,6 +51,7 @@ export const FPO_OPERATOR_MORE_NAV = [
   { path: '#/weather', label: 'Weather Forecast', icon: 'cloud-sun' },
   { path: '#/history', label: 'Transaction History', icon: 'clipboard' },
   { path: '#/assistant', label: 'AI Assistant', icon: 'message' },
+  { path: '#/grievances', label: 'Grievances', icon: 'shield' },
 ];
 
 // Path -> roles allowed to view it. A path with no entry here is shared across every role.

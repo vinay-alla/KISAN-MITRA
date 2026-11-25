@@ -3,7 +3,7 @@ import * as D from './data.js';
 import { store } from './store.js';
 import { toast, openModal, closeModal } from './ui.js';
 import { t, greet, currentLangCode } from './i18n.js';
-import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, isValidIndianMobile } from './util.js';
+import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, isValidIndianMobile, phoneKey } from './util.js';
 import { hashPassword, verifyPassword } from './crypto.js';
 import {
   getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
@@ -1047,7 +1047,7 @@ function renderOrders() {
         <div class="flex gap-2 mt-4">
           ${stage < D.ORDER_STAGES.length - 1 ? `<button data-advance="${o.id}" data-stage="${stage + 1}" class="flex-1 bg-primary text-primary-foreground text-sm font-bold py-2 rounded-lg hover:opacity-90 transition">Mark "${D.ORDER_STAGES[stage + 1]}"</button>` : `<span class="flex-1 text-center bg-primary/10 text-primary text-sm font-bold py-2 rounded-lg">Completed ✓</span>`}
           <button data-record="${o.id}" class="border border-border text-sm font-bold px-3 py-2 rounded-lg hover:bg-muted transition">${icon('clipboard', 'w-4 h-4')}</button>
-          <button data-dispute="${o.id}" class="border border-destructive/40 text-destructive text-sm font-bold px-3 py-2 rounded-lg hover:bg-destructive/10 transition">${icon('alert', 'w-4 h-4')}</button>
+          <button data-dispute="${o.id}" aria-label="${t('Raise a Grievance')}" title="${t('Raise a Grievance')}" class="border border-destructive/40 text-destructive text-sm font-bold px-3 py-2 rounded-lg hover:bg-destructive/10 transition">${icon('alert', 'w-4 h-4')}</button>
         </div>
       </div>`;
   }
@@ -1090,27 +1090,7 @@ function renderOrders() {
           }),
         });
       }));
-      list.querySelectorAll('[data-dispute]').forEach((btn) => btn.addEventListener('click', () => {
-        openModal(`
-          <div class="p-5">
-            <h3 class="font-extrabold text-lg mb-3">Raise a Grievance</h3>
-            <label class="text-xs font-bold text-muted-foreground">Issue Type</label>
-            <select id="gr-type" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3">
-              <option>Quality dispute</option><option>Payment delay</option><option>Logistics issue</option><option>Buyer unreachable</option><option>Other</option>
-            </select>
-            <label class="text-xs font-bold text-muted-foreground">Describe the issue</label>
-            <textarea id="gr-desc" rows="3" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-4" placeholder="What went wrong?"></textarea>
-            <div class="flex gap-2">
-              <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
-              <button id="submit-grievance" class="flex-1 bg-destructive text-destructive-foreground rounded-xl py-2.5 font-semibold">Submit</button>
-            </div>
-          </div>`, {
-          onMount: (m) => m.querySelector('#submit-grievance').addEventListener('click', () => {
-            closeModal();
-            toast('Grievance submitted. Support will contact you within 24 hours.', { tone: 'success', icon: 'shield' });
-          }),
-        });
-      }));
+      list.querySelectorAll('[data-dispute]').forEach((btn) => btn.addEventListener('click', () => openGrievanceModal({ orderId: btn.dataset.dispute })));
     }
     render();
   }
@@ -2981,6 +2961,156 @@ function renderAssistant() {
   return { html, mount };
 }
 
+/* ---------------- GRIEVANCE CENTRE ---------------- */
+// Persisted per account. There is no real support desk in this prototype, so the
+// "Under Review" / "Resolved" steps are advanced by a clearly-labelled demo button.
+
+const GRIEVANCE_ICON = { 'Quality dispute': 'scale', 'Payment delay': 'banknote', 'Logistics issue': 'truck', 'Buyer unreachable': 'phone', Other: 'message' };
+
+function grievanceOwner() { return phoneKey(store.get().user?.phone); }
+function myGrievances() {
+  const me = grievanceOwner();
+  return store.get().grievances.filter((g) => g.ownerPhone === me);
+}
+function grievanceWhen(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+function grievanceReferences() {
+  const map = new Map();
+  [...store.get().orders, ...D.ORDERS].forEach((o) => { if (!map.has(o.id)) map.set(o.id, `${o.id} · ${o.crop} · ${o.buyer || ''}`.replace(/ · $/, '')); });
+  return [...map];
+}
+
+// Shared by the Grievances page and the Orders page's per-order "report a problem" button.
+function openGrievanceModal({ orderId = '', onSaved } = {}) {
+  const refs = grievanceReferences();
+  openModal(`
+    <form class="p-5" id="gr-form" novalidate>
+      <h3 class="font-extrabold text-lg mb-3">${t('Raise a Grievance')}</h3>
+      <label for="gr-type" class="text-xs font-bold text-muted-foreground">${t('Issue Type')}</label>
+      <select id="gr-type" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3">
+        ${GRIEVANCE_TYPES.map((x) => `<option value="${esc(x)}">${esc(t(x))}</option>`).join('')}
+      </select>
+      <label for="gr-ref" class="text-xs font-bold text-muted-foreground">${t('Related order (optional)')}</label>
+      <select id="gr-ref" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3">
+        <option value="">${t('Not about a specific order')}</option>
+        ${refs.map(([id, label]) => `<option value="${esc(id)}" ${id === orderId ? 'selected' : ''}>${esc(label)}</option>`).join('')}
+      </select>
+      <label for="gr-desc" class="text-xs font-bold text-muted-foreground">${t('Describe the issue')}</label>
+      <textarea id="gr-desc" rows="4" maxlength="1000" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1" placeholder="${t('What went wrong? When did it happen?')}"></textarea>
+      <div class="flex justify-between text-[11px] text-muted-foreground mt-1 mb-3">
+        <span id="gr-error" class="text-destructive font-semibold" role="alert"></span>
+        <span id="gr-count">0 / 1000</span>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">${t('Cancel')}</button>
+        <button type="submit" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">${t('Submit')}</button>
+      </div>
+    </form>`, {
+    onMount: (m) => {
+      const desc = m.querySelector('#gr-desc');
+      desc.addEventListener('input', () => { m.querySelector('#gr-count').textContent = `${desc.value.length} / 1000`; });
+      m.querySelector('#gr-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const type = m.querySelector('#gr-type').value;
+        const description = desc.value.trim();
+        const problem = validateGrievance({ type, description });
+        if (problem) { m.querySelector('#gr-error').textContent = problem; desc.focus(); return; }
+        const now = new Date().toISOString();
+        const g = {
+          id: `GR-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+          ownerPhone: grievanceOwner(),
+          type,
+          description,
+          ref: m.querySelector('#gr-ref').value,
+          status: 'Submitted',
+          createdAt: now,
+          history: [{ status: 'Submitted', at: now }],
+        };
+        store.addGrievance(g);
+        closeModal();
+        toast(`Grievance ${g.id} submitted. Track it under Grievances.`, { tone: 'success', icon: 'shield' });
+        if (onSaved) onSaved(g);
+      });
+    },
+  });
+}
+
+function renderGrievances() {
+  const html = pageWrap(`
+    ${sectionHead('Grievances', 'Raise an issue with an order, payment or buyer and track it to resolution')}
+    <div class="px-4 md:px-6">
+      <button id="gr-new" class="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold px-5 py-3 rounded-xl hover:opacity-90 transition">${icon('plus', 'w-4 h-4')}${t('Raise a Grievance')}</button>
+    </div>
+    <div class="px-4 md:px-6 mt-4 grid grid-cols-3 gap-3" id="gr-stats"></div>
+    <div class="px-4 md:px-6 mt-4 space-y-3" id="gr-list"></div>
+    <p class="px-4 md:px-6 mt-4 text-[11px] text-muted-foreground">${t('Prototype: there is no live support desk. Use “Simulate support response” to see how a grievance moves through Under Review to Resolved.')}</p>
+  `);
+
+  function stepper(g) {
+    const at = GRIEVANCE_STATUSES.indexOf(g.status);
+    return `<ol class="flex items-start mt-3" aria-label="${t('Status')}">${GRIEVANCE_STATUSES.map((s, i) => {
+      const done = i <= at;
+      const entry = (g.history || []).find((h) => h.status === s);
+      return `<li class="flex-1 flex flex-col items-center relative">
+        ${i > 0 ? `<div class="absolute right-1/2 top-3 w-full h-0.5 ${done ? 'bg-primary' : 'bg-border'}"></div>` : ''}
+        <div class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold z-10 ${done ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}">${i < at ? icon('check', 'w-3.5 h-3.5') : i + 1}</div>
+        <span class="text-[10px] font-semibold text-center mt-1 ${done ? 'text-foreground' : 'text-muted-foreground'}">${t(s)}</span>
+        <span class="text-[9px] text-muted-foreground">${entry ? esc(grievanceWhen(entry.at)) : ''}</span>
+      </li>`;
+    }).join('')}</ol>`;
+  }
+
+  function cardHtml(g) {
+    const resolved = g.status === 'Resolved';
+    return card(`
+      <div class="flex items-start gap-3">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${resolved ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground'}">${icon(GRIEVANCE_ICON[g.type] || 'alert', 'w-4.5 h-4.5')}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-bold text-sm">${esc(t(g.type))}</div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${resolved ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground'}">${esc(t(g.status))}</span>
+          </div>
+          <div class="text-[11px] text-muted-foreground">${esc(g.id)}${g.ref ? ` · ${esc(g.ref)}` : ''} · ${esc(grievanceWhen(g.createdAt))}</div>
+          <p class="text-sm mt-2 whitespace-pre-wrap break-words">${esc(g.description)}</p>
+        </div>
+      </div>
+      ${stepper(g)}
+      ${resolved ? '' : `<button data-advance="${esc(g.id)}" class="mt-3 w-full border border-dashed border-border text-xs font-bold text-muted-foreground py-2 rounded-lg hover:bg-muted transition">${t('Simulate support response')} → ${esc(t(nextGrievanceStatus(g.status)))}</button>`}
+    `);
+  }
+
+  function mount(root) {
+    const list = root.querySelector('#gr-list');
+    const stats = root.querySelector('#gr-stats');
+    function render() {
+      const items = myGrievances();
+      const open = items.filter((g) => g.status !== 'Resolved').length;
+      const stat = (n, label) => `<div class="card p-3 text-center"><div class="text-xl font-extrabold">${n}</div><div class="text-[10px] font-semibold text-muted-foreground">${t(label)}</div></div>`;
+      stats.innerHTML = stat(items.length, 'Raised') + stat(open, 'Open') + stat(items.length - open, 'Resolved');
+      list.innerHTML = items.length ? items.map(cardHtml).join('') : card(`
+        <div class="text-center py-6">
+          <div class="mx-auto w-14 h-14 rounded-full bg-primary-light flex items-center justify-center text-primary mb-3">${icon('shield', 'w-6 h-6')}</div>
+          <div class="font-bold">${t('No grievances raised')}</div>
+          <p class="text-sm text-muted-foreground mt-1">${t('If a payment is late or a buyer is unreachable, raise it here and track it.')}</p>
+        </div>`);
+      list.querySelectorAll('[data-advance]').forEach((btn) => btn.addEventListener('click', () => {
+        const g = items.find((x) => x.id === btn.dataset.advance);
+        const next = g && nextGrievanceStatus(g.status);
+        if (!next) return;
+        store.updateGrievance(g.id, { status: next, history: [...(g.history || []), { status: next, at: new Date().toISOString() }] });
+        toast(`${g.id}: ${next}`, { tone: 'success', icon: 'shield' });
+        render();
+      }));
+    }
+    root.querySelector('#gr-new').addEventListener('click', () => openGrievanceModal({ onSaved: render }));
+    render();
+  }
+
+  return { html, mount };
+}
+
 /* ---------------- ROUTES ---------------- */
 
 export const ROUTES = {
@@ -3007,6 +3137,7 @@ export const ROUTES = {
   '/history': renderHistory,
   '/crop-suggestions': renderCropSuggestions,
   '/fpo-members': renderFpoMembers,
+  '/grievances': renderGrievances,
 };
 
 export function renderDynamic(path) {
