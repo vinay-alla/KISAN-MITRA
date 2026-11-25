@@ -63,3 +63,15 @@ export function toNumber(value, fallback = 0) {
   const n = Number(text);
   return Number.isFinite(n) ? n : fallback;
 }
+
+// Canonical key for an Indian mobile number: digits only, last 10 (drops +91 / 0 prefixes), so
+// "+91 98765 43210", "098765-43210" and "9876543210" all identify the same account.
+export function phoneKey(phone) {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+// A valid Indian mobile number: 10 digits (after dropping +91 / 0), starting 6–9.
+export function isValidIndianMobile(phone) {
+  return /^[6-9]\d{9}$/.test(phoneKey(phone));
+}

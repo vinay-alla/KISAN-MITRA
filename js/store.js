@@ -1,8 +1,14 @@
-// Tiny localStorage-backed store for "real feel" persistence across the clone.
-const KEY = 'kisanmitra:state:v3';
+// Tiny localStorage-backed store for persistence across page loads.
+import { phoneKey } from './util.js';
 
-function load() {
-  const defaults = {
+export const STORAGE_KEY = 'kisanmitra:state:v3';
+const KEY = STORAGE_KEY;
+
+export const ROLES = ['farmer', 'buyer', 'fpo_operator'];
+export const LANGUAGES = ['English', 'हिंदी', 'मराठी'];
+
+export function defaultState() {
+  return {
     location: 'Rangareddy District, Telangana',
     startedCrop: null,
     likedPosts: [],
@@ -16,16 +22,44 @@ function load() {
     orders: [],
     lots: [],
     language: 'English',
+    voiceEnabled: true,
     fpoJoined: true,
     user: null,
     offers: [],
     accounts: [],
+    grievances: [],
+    poolContributions: {},
+    sharedTripBookings: {},
   };
+}
+
+// Anything read back from localStorage is untrusted: it may be hand-edited, truncated, written
+// by an older version or just corrupt. Keep only values whose type matches the defaults, so a
+// bad value can never crash a page — it falls back to the default instead.
+export function sanitizeState(raw, defaults = defaultState()) {
+  const out = { ...defaults };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const key of Object.keys(defaults)) {
+    if (!(key in raw)) continue;
+    const dv = defaults[key];
+    const rv = raw[key];
+    if (Array.isArray(dv)) { if (Array.isArray(rv)) out[key] = rv; }
+    else if (dv !== null && typeof dv === 'object') { if (rv && typeof rv === 'object' && !Array.isArray(rv)) out[key] = rv; }
+    else if (dv === null) { if (rv === null || typeof rv === 'object') out[key] = rv; }
+    else if (typeof rv === typeof dv) out[key] = rv;
+  }
+  if (out.user && (typeof out.user !== 'object' || Array.isArray(out.user) || !ROLES.includes(out.user.role))) out.user = null;
+  if (!LANGUAGES.includes(out.language)) out.language = defaults.language;
+  out.accounts = out.accounts.filter((a) => a && typeof a === 'object' && typeof a.phone === 'string');
+  return out;
+}
+
+function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...defaults, ...JSON.parse(raw) };
-  } catch (e) {}
-  return defaults;
+    if (raw) return sanitizeState(JSON.parse(raw));
+  } catch (e) { /* unreadable or unavailable storage — start fresh */ }
+  return defaultState();
 }
 
 let state = load();
@@ -88,18 +122,54 @@ export const store = {
   logout() { state = { ...state, user: null }; persist(); },
   updateUser(patch) { if (!state.user) return; state = { ...state, user: { ...state.user, ...patch } }; persist(); },
   findAccount(phone) {
-    const key = String(phone || '').replace(/\D/g, '');
-    return state.accounts.find((a) => a.phone.replace(/\D/g, '') === key);
+    const key = phoneKey(phone);
+    if (!key) return undefined;
+    return state.accounts.find((a) => phoneKey(a.phone) === key);
   },
   createAccount(account) {
     state = { ...state, accounts: [...state.accounts, account] };
     persist();
   },
   updateAccount(phone, patch) {
-    const key = String(phone || '').replace(/\D/g, '');
-    state = { ...state, accounts: state.accounts.map((a) => (a.phone.replace(/\D/g, '') === key ? { ...a, ...patch } : a)) };
+    const key = phoneKey(phone);
+    state = { ...state, accounts: state.accounts.map((a) => (phoneKey(a.phone) === key ? { ...a, ...patch } : a)) };
     persist();
   },
+  // Wipe everything and start over — the escape hatch if saved data is ever broken.
+  resetAll() {
+    state = defaultState();
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  },
+
+  // --- grievances ---
+  addGrievance(g) { state = { ...state, grievances: [g, ...state.grievances] }; persist(); },
+  updateGrievance(id, patch) {
+    state = { ...state, grievances: state.grievances.map((g) => (g.id === id ? { ...g, ...patch } : g)) };
+    persist();
+  },
+
+  // --- FPO pools: quintals the farmer has committed to each open pool ---
+  setPoolContribution(poolId, qty) {
+    state = { ...state, poolContributions: { ...state.poolContributions, [poolId]: qty } };
+    persist();
+  },
+  clearPoolContribution(poolId) {
+    const { [poolId]: _removed, ...rest } = state.poolContributions;
+    state = { ...state, poolContributions: rest };
+    persist();
+  },
+
+  // --- shared transport: quintals booked on each shared trip ---
+  setSharedTripBooking(tripId, booking) {
+    state = { ...state, sharedTripBookings: { ...state.sharedTripBookings, [tripId]: booking } };
+    persist();
+  },
+  clearSharedTripBooking(tripId) {
+    const { [tripId]: _removed, ...rest } = state.sharedTripBookings;
+    state = { ...state, sharedTripBookings: rest };
+    persist();
+  },
+
   addOffer(offer) { state = { ...state, offers: [offer, ...state.offers] }; persist(); },
   updateOfferStatus(id, status) {
     state = { ...state, offers: state.offers.map((o) => (o.id === id ? { ...o, status } : o)) };

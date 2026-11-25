@@ -229,3 +229,25 @@ a.card:hover, .card-hover:hover {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 input[type="range"] { accent-color: hsl(142 52% 34%); }
+
+/* ---------- accessibility ---------- */
+.skip-link {
+  position: fixed; top: 8px; left: 8px; z-index: 100;
+  transform: translateY(-200%);
+  background: hsl(142 55% 22%); color: #fff; font-weight: 800;
+  padding: .6rem 1rem; border-radius: .75rem; text-decoration: none;
+  transition: transform .15s ease;
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* Respect users who ask the OS for less motion: no slides, pulses, shimmer or floating. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+#app-main:focus { outline: none; }

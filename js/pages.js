@@ -3,7 +3,8 @@ import * as D from './data.js';
 import { store } from './store.js';
 import { toast, openModal, closeModal } from './ui.js';
 import { t, greet, currentLangCode } from './i18n.js';
-import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber } from './util.js';
+import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, isValidIndianMobile } from './util.js';
+import { hashPassword, verifyPassword } from './crypto.js';
 import {
   getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
   offerCancelWindow, storageEconomics, compareHoldPeriods, poolStatus, sharedTripCost,
@@ -2620,17 +2621,29 @@ function renderLogin() {
         : 'Try Demo Buyer Account (AgroFresh Exports)';
     }
 
+    const ROLE_LABEL = { farmer: 'Farmer', buyer: 'Buyer', fpo_operator: 'FPO Operator' };
+    let busy = false;
+
+    // Hashing takes a moment (deliberately), so lock the form while it runs.
+    function setBusy(on) {
+      busy = on;
+      submitBtn.disabled = on;
+      demoBtn.disabled = on;
+      if (on) submitBtn.textContent = t('Please wait…'); else styleButtons();
+    }
+
     function doLogin(user) {
-      const { password, ...session } = user;
+      // Credentials must never end up in the session object.
+      const { password, passwordHash, ...session } = user;
       store.login(session);
       toast(`Welcome, ${session.name}!`, { tone: 'success', icon: 'checkCircle' });
       navigateTo('#/', true);
     }
 
-    function ensureAccount(defaults, password) {
+    async function ensureAccount(defaults, password) {
       let account = store.findAccount(defaults.phone);
       if (!account) {
-        account = { ...defaults, password };
+        account = { ...defaults, passwordHash: await hashPassword(password) };
         store.createAccount(account);
       }
       return account;
@@ -2646,42 +2659,74 @@ function renderLogin() {
       fieldsEl.innerHTML = fieldsHtml(); styleButtons(); wireExtras(); clearError();
     }));
 
-    submitBtn.addEventListener('click', () => {
+    submitBtn.addEventListener('click', async () => {
+      if (busy) return;
       clearError();
       const phone = fieldsEl.querySelector('#lf-phone').value.trim();
       const password = fieldsEl.querySelector('#lf-password').value;
 
-      if (mode === 'login') {
-        if (!phone || !password) { showError('Enter your phone number and password.'); return; }
-        const account = store.findAccount(phone);
-        if (!account) { showError('No account found with this phone number. Create one first.'); return; }
-        if (account.password !== password) { showError('Incorrect password. Try again.'); return; }
+      try {
+        if (mode === 'login') {
+          if (!phone || !password) { showError('Enter your phone number and password.'); return; }
+          const account = store.findAccount(phone);
+          if (!account) { showError('No account found with this phone number. Create one first.'); return; }
+          if (account.role && account.role !== role) {
+            showError(`This number is registered as a ${ROLE_LABEL[account.role] || account.role}. Choose "${ROLE_LABEL[account.role] || account.role}" above to log in.`);
+            return;
+          }
+          setBusy(true);
+          const ok = await verifyPassword(password, account.passwordHash ?? account.password);
+          if (!ok) { setBusy(false); showError('Incorrect password. Try again.'); return; }
+          // Accounts made before hashing existed stored the password as typed — upgrade on first login.
+          if (!account.passwordHash) store.updateAccount(account.phone, { passwordHash: await hashPassword(password), password: undefined });
+          setBusy(false);
+          doLogin(account);
+          return;
+        }
+
+        const fullName = fieldsEl.querySelector('#lf-name').value.trim().replace(/\s+/g, ' ');
+        const password2 = fieldsEl.querySelector('#lf-password2').value;
+        if (!fullName || !phone || !password || !password2) { showError('Please fill in every field.'); return; }
+        if (fullName.length < 2 || fullName.length > 60) { showError('Enter your full name (2–60 characters).'); return; }
+        if (!isValidIndianMobile(phone)) { showError('Enter a valid 10-digit mobile number (starting 6–9).'); return; }
+        if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
+        if (password.length > 128) { showError('Password must be 128 characters or fewer.'); return; }
+        if (password !== password2) { showError('Passwords do not match.'); return; }
+        if (store.findAccount(phone)) { showError('An account with this phone number already exists. Log in instead.'); return; }
+
+        const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
+        const clip = (v, max) => String(v || '').trim().slice(0, max);
+        const location = clip(fieldsEl.querySelector('#lf-location').value, 80) || base.location;
+        const extra = role === 'buyer' ? { company: clip(fieldsEl.querySelector('#lf-company')?.value, 80) || base.company }
+          : role === 'fpo_operator' ? { fpo: clip(fieldsEl.querySelector('#lf-fpo')?.value, 80) || base.fpo }
+          : {};
+        const weatherPatch = liveWeather != null ? { weather: liveWeather } : {};
+        setBusy(true);
+        const passwordHash = await hashPassword(password);
+        const account = { ...base, ...extra, fullName, name: fullName.split(' ')[0], phone, location, passwordHash, ...weatherPatch };
+        store.createAccount(account);
+        setBusy(false);
         doLogin(account);
-        return;
+      } catch (err) {
+        console.error('Sign-in failed', err);
+        setBusy(false);
+        showError('Something went wrong while signing in. Please try again.');
       }
-
-      const fullName = fieldsEl.querySelector('#lf-name').value.trim();
-      const password2 = fieldsEl.querySelector('#lf-password2').value;
-      if (!fullName || !phone || !password || !password2) { showError('Please fill in every field.'); return; }
-      if (phone.replace(/\D/g, '').length < 10) { showError('Enter a valid 10-digit phone number.'); return; }
-      if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
-      if (password !== password2) { showError('Passwords do not match.'); return; }
-      if (store.findAccount(phone)) { showError('An account with this phone number already exists. Log in instead.'); return; }
-
-      const weatherPatch = liveWeather != null ? { weather: liveWeather } : {};
-      const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
-      const location = fieldsEl.querySelector('#lf-location').value.trim() || base.location;
-      const extra = role === 'buyer' ? { company: (fieldsEl.querySelector('#lf-company')?.value.trim()) || base.company }
-        : role === 'fpo_operator' ? { fpo: (fieldsEl.querySelector('#lf-fpo')?.value.trim()) || base.fpo }
-        : {};
-      const account = { ...base, ...extra, fullName, name: fullName.split(' ')[0], phone, location, password, ...weatherPatch };
-      store.createAccount(account);
-      doLogin(account);
     });
 
-    demoBtn.addEventListener('click', () => {
-      const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
-      doLogin(ensureAccount(base, 'demo123'));
+    demoBtn.addEventListener('click', async () => {
+      if (busy) return;
+      try {
+        setBusy(true);
+        const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
+        const account = await ensureAccount(base, 'demo123');
+        setBusy(false);
+        doLogin(account);
+      } catch (err) {
+        console.error('Demo sign-in failed', err);
+        setBusy(false);
+        showError('Could not start the demo account. Please try again.');
+      }
     });
 
     fieldsEl.innerHTML = fieldsHtml();

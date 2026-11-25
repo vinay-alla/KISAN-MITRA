@@ -1,7 +1,7 @@
 // Kisan Mitra service worker — keeps the app shell usable on flaky/low-connectivity rural
 // networks: the UI, icons and photos load instantly from cache, while data-ish requests
 // (page navigation, live weather/geocoding) still prefer the network when it's available.
-const CACHE = 'kisan-mitra-v3';
+const CACHE = 'kisan-mitra-v4';
 
 // Relative URLs resolve against this file's location, so the app works both at a domain
 // root (python devserver) and under a sub-path (GitHub Pages project site: /<repo>/).
@@ -11,12 +11,15 @@ const APP_SHELL = [
   './manifest.json',
   './css/style.css',
   './js/app.js',
+  './js/crypto.js',
   './js/data.js',
   './js/i18n.js',
   './js/icons.js',
+  './js/logic.js',
   './js/pages.js',
   './js/store.js',
   './js/ui.js',
+  './js/util.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/logo-192.png',

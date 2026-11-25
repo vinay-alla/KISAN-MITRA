@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, clamp, toNumber } from '../js/util.js';
+import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, clamp, toNumber, phoneKey, isValidIndianMobile } from '../js/util.js';
 
 test('esc neutralises every HTML-significant character', () => {
   assert.equal(esc('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
@@ -73,4 +73,17 @@ test('clamp and toNumber', () => {
   assert.equal(toNumber(''), 0);
   assert.equal(toNumber('abc', 7), 7);
   assert.equal(toNumber(null, 3), 3);
+});
+
+test('phoneKey normalises every common way of writing the same mobile number', () => {
+  const same = ['+91 98765 43210', '098765-43210', '9876543210', '+91-9876543210', '91 98765 43210'];
+  for (const s of same) assert.equal(phoneKey(s), '9876543210', s);
+  assert.equal(phoneKey(''), '');
+  assert.equal(phoneKey(null), '');
+  assert.equal(phoneKey('abc'), '');
+});
+
+test('isValidIndianMobile accepts real mobiles and rejects the rest', () => {
+  for (const ok of ['9876543210', '+91 98765 43210', '6000000000', '7123456789', '8999999999']) assert.equal(isValidIndianMobile(ok), true, ok);
+  for (const bad of ['1234567890', '5876543210', '98765', '98765432101234', 'abcdefghij', '', null, '00000 00000']) assert.equal(isValidIndianMobile(bad), false, String(bad));
 });

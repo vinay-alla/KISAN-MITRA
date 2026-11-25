@@ -1,13 +1,13 @@
 import { icon, iconFilled, navIcon, kisanMitraMark } from './icons.js';
 import {
   FARMER_BOTTOM_NAV, FARMER_MORE_NAV, BUYER_BOTTOM_NAV, BUYER_MORE_NAV,
-  FPO_OPERATOR_BOTTOM_NAV, FPO_OPERATOR_MORE_NAV,
-  ROLE_RESTRICTED_PATHS, ALERTS,
+  FPO_OPERATOR_BOTTOM_NAV, FPO_OPERATOR_MORE_NAV, ALERTS,
 } from './data.js';
 import { ROUTES, renderDynamic, setNavigator } from './pages.js';
-import { closeModal, openModal } from './ui.js';
+import { closeModal, openModal, toast } from './ui.js';
 import { store } from './store.js';
-import { t } from './i18n.js';
+import { t, currentLangCode } from './i18n.js';
+import { canAccess } from './logic.js';
 
 const headerEl = document.getElementById('app-header');
 const mainEl = document.getElementById('app-main');
@@ -40,25 +40,25 @@ function renderHeader(path) {
   const { bottom, more } = navFor(user?.role);
   headerEl.innerHTML = `
     <div class="max-w-5xl mx-auto flex items-center justify-between gap-3 px-4 md:px-6 py-3">
-      <a href="#/" class="flex items-center gap-2.5 shrink-0">
+      <a href="#/" aria-label="Kisan Mitra — home" class="flex items-center gap-2.5 shrink-0">
         <div class="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center shadow-soft">${kisanMitraMark('w-6 h-6')}</div>
         <span class="font-display font-extrabold text-lg tracking-tight">Kisan Mitra</span>
         ${ROLE_BADGE[user?.role] ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary/15 text-secondary">${ROLE_BADGE[user.role]}</span>` : ''}
       </a>
 
-      <nav class="hidden lg:flex items-center gap-1 overflow-x-auto scrollbar-none">
+      <nav aria-label="Main" class="hidden lg:flex items-center gap-1 overflow-x-auto scrollbar-none">
         ${bottom.concat(more).map((n) => `
-          <a href="${n.path}" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}">
+          <a href="${n.path}" ${isActive(path, n.path) ? 'aria-current="page"' : ''} class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}">
             ${navIcon(n.icon, 'w-5 h-5')} ${t(n.label)}
           </a>`).join('')}
       </nav>
 
       <div class="flex items-center gap-2 shrink-0">
-        <button id="bell-toggle" class="relative w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
+        <button id="bell-toggle" aria-label="Market alerts" class="relative w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
           ${iconFilled('bell', 'w-5 h-5')}
           <span class="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-destructive"></span>
         </button>
-        <button id="menu-toggle" class="lg:hidden w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
+        <button id="menu-toggle" aria-label="${menuOpen ? 'Close menu' : 'Open menu'}" aria-expanded="${menuOpen}" class="lg:hidden w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
           ${menuOpen ? icon('x', 'w-5 h-5') : iconFilled('menu', 'w-5 h-5')}
         </button>
       </div>
@@ -98,11 +98,11 @@ function renderOverlay(path) {
   const items = bottom.concat(more);
   overlayEl.innerHTML = `
     <div class="absolute inset-0 bg-black/40" data-close-menu></div>
-    <div class="absolute top-0 inset-x-0 bg-background border-b border-border shadow-xl max-h-[80vh] overflow-y-auto">
+    <div role="dialog" aria-label="Menu" class="absolute top-0 inset-x-0 bg-background border-b border-border shadow-xl max-h-[80vh] overflow-y-auto">
       <div class="max-w-5xl mx-auto px-4 md:px-6 py-4 pt-[64px]">
         <div class="grid grid-cols-2 gap-2.5">
           ${items.map((n) => `
-            <a href="${n.path}" class="flex items-center gap-2 px-4 py-3 rounded-xl border font-bold text-sm transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-foreground hover:bg-muted'}">
+            <a href="${n.path}" ${isActive(path, n.path) ? 'aria-current="page"' : ''} class="flex items-center gap-2 px-4 py-3 rounded-xl border font-bold text-sm transition ${isActive(path, n.path) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-foreground hover:bg-muted'}">
               ${navIcon(n.icon, 'w-6 h-6')} ${t(n.label)}
             </a>`).join('')}
         </div>
@@ -119,11 +119,11 @@ function renderBottomNav(path) {
   const user = store.get().user;
   const { bottom } = navFor(user?.role);
   bottomNavEl.innerHTML = `
-    <div class="grid grid-cols-5">
+    <div class="grid grid-cols-5" role="list">
       ${bottom.map((n) => {
         const active = isActive(path, n.path);
         return `
-        <a href="${n.path}" class="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold transition">
+        <a href="${n.path}" role="listitem" ${active ? 'aria-current="page"' : ''} class="relative flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-bold transition">
           ${active ? '<span class="absolute top-0 w-8 h-1 rounded-full bg-primary"></span>' : ''}
           <span class="px-3 py-1 rounded-full transition-all ${active ? 'bg-primary-light shadow-soft scale-105' : ''}">${navIcon(n.icon, 'w-6 h-6')}</span>
           <span class="${active ? 'text-primary' : 'text-muted-foreground'}">${t(n.label)}</span>
@@ -131,6 +131,57 @@ function renderBottomNav(path) {
       }).join('')}
     </div>`;
 }
+
+function errorPageHtml() {
+  return `
+    <div class="page-enter px-4 md:px-6 pt-10">
+      <div class="card p-6 text-center max-w-md mx-auto">
+        <div class="mx-auto w-14 h-14 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mb-3">${icon('alert', 'w-7 h-7')}</div>
+        <h1 class="font-display text-xl font-extrabold">Something went wrong</h1>
+        <p class="text-sm text-muted-foreground mt-1">This page hit an unexpected problem. Your data is safe — try again, or head back home.</p>
+        <div class="flex gap-2 mt-5">
+          <button id="err-retry" class="flex-1 bg-primary text-primary-foreground font-bold py-2.5 rounded-xl">Try again</button>
+          <a href="#/" class="flex-1 border border-border font-bold py-2.5 rounded-xl text-center">Go home</a>
+        </div>
+        <button id="err-reset" class="mt-4 text-xs font-semibold text-muted-foreground underline underline-offset-2">Still broken? Reset saved data</button>
+      </div>
+    </div>`;
+}
+
+function wireErrorPage(root) {
+  root.querySelector('#err-retry')?.addEventListener('click', () => location.reload());
+  root.querySelector('#err-reset')?.addEventListener('click', () => {
+    if (window.confirm('This clears your account and all saved data in this browser. Continue?')) {
+      store.resetAll();
+      location.hash = '#/login';
+      location.reload();
+    }
+  });
+}
+
+// Last-resort handlers: surface unexpected runtime errors instead of failing silently.
+let lastErrorToast = 0;
+function reportRuntimeError(detail) {
+  console.error(detail);
+  const now = Date.now();
+  if (now - lastErrorToast < 4000) return;
+  lastErrorToast = now;
+  toast('Something went wrong. Please try again.', { tone: 'error' });
+}
+window.addEventListener('error', (e) => {
+  if (String(e.message).includes('ResizeObserver')) return;
+  reportRuntimeError(e.error || e.message);
+});
+window.addEventListener('unhandledrejection', (e) => reportRuntimeError(e.reason));
+
+// Escape closes the mobile menu (modals handle Escape themselves).
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && menuOpen) {
+    menuOpen = false;
+    renderHeader(currentPath());
+    renderOverlay(currentPath());
+  }
+});
 
 function render() {
   const path = currentPath();
@@ -140,19 +191,30 @@ function render() {
   if (!user && path !== '/login') { location.hash = '#/login'; return; }
   // Already logged in -> skip the login page.
   if (user && path === '/login') { location.hash = '#/'; return; }
-  // Role-scoped routes: a path listed in ROLE_RESTRICTED_PATHS is only visible to the roles
-  // named there; anything not listed is shared across every logged-in role.
-  if (user) {
-    const restriction = Object.entries(ROLE_RESTRICTED_PATHS).find(([p]) => path === p || path.startsWith(p + '/'));
-    if (restriction && !restriction[1].includes(user.role)) { location.hash = '#/'; return; }
-  }
+  // Role-scoped routes (see ROLE_RESTRICTED_PATHS); unlisted paths are shared by every role.
+  if (user && !canAccess(user.role, path)) { location.hash = '#/'; return; }
 
   menuOpen = false;
-  let result = ROUTES[path] ? ROUTES[path]() : renderDynamic(path);
-  if (!result) result = ROUTES[user ? '/' : '/login']();
-  const { html, mount } = result;
-  mainEl.innerHTML = html;
-  if (mount) mount(mainEl);
+  document.documentElement.lang = currentLangCode();
+
+  // Error boundary: a bug in one page must never leave the user on a blank screen.
+  let result;
+  try {
+    result = ROUTES[path] ? ROUTES[path]() : renderDynamic(path);
+    if (!result) result = ROUTES[user ? '/' : '/login']();
+  } catch (err) {
+    console.error(`Page failed to render: ${path}`, err);
+    result = { html: errorPageHtml(), mount: wireErrorPage };
+  }
+  mainEl.innerHTML = result.html;
+  if (result.mount) {
+    try { result.mount(mainEl); } catch (err) {
+      console.error(`Page failed to initialise: ${path}`, err);
+      toast('Part of this page could not load. Please refresh.', { tone: 'error' });
+    }
+  }
+  const heading = mainEl.querySelector('h1');
+  document.title = heading ? `${heading.textContent.trim()} · Kisan Mitra` : 'Kisan Mitra';
 
   const showChrome = path !== '/login';
   headerEl.classList.toggle('hidden', !showChrome);
@@ -165,6 +227,12 @@ function render() {
   closeModal();
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
+
+// The skip link must not touch location.hash — that is the router's state.
+document.querySelector('.skip-link')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  mainEl.focus({ preventScroll: false });
+});
 
 window.addEventListener('hashchange', render);
 
