@@ -3,7 +3,7 @@ import * as D from './data.js';
 import { store } from './store.js';
 import { toast, openModal, closeModal } from './ui.js';
 import { t, greet, currentLangCode } from './i18n.js';
-import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, isValidIndianMobile, phoneKey } from './util.js';
+import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, clamp, isValidIndianMobile, phoneKey } from './util.js';
 import { hashPassword, verifyPassword } from './crypto.js';
 import {
   getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
@@ -1293,6 +1293,177 @@ function renderFPO() {
 
 /* ---------------- LOGISTICS: TRANSPORT & STORAGE ---------------- */
 
+/* ---------------- STORAGE CALCULATOR + SHARED TRIPS (Logistics tabs) ---------------- */
+
+// Calculator inputs survive re-renders (booking a facility, sorting by distance) and tab switches.
+const storageCalc = { cropId: 'tomato', qty: 50, days: 14, facilityId: 'best' };
+
+function resolveStorageFacility(commodity) {
+  if (storageCalc.facilityId === 'farm') return null;
+  if (storageCalc.facilityId !== 'best') return D.STORAGE_FACILITIES.find((f) => f.id === storageCalc.facilityId) || null;
+  // "Best match": the suitable facility that leaves the most money in hand after the chosen hold.
+  const qty = storageCalc.qty;
+  const suitable = D.STORAGE_FACILITIES.filter((f) => f.suitableFor.includes(commodity.name));
+  if (!suitable.length) return null;
+  return suitable.reduce((best, f) => (
+    storageEconomics({ commodity, quantity: qty, days: storageCalc.days, facility: f }).gainPerQtl
+      > storageEconomics({ commodity, quantity: qty, days: storageCalc.days, facility: best }).gainPerQtl ? f : best
+  ), suitable[0]);
+}
+
+function storageResultHtml() {
+  const commodity = D.COMMODITIES.find((c) => c.id === storageCalc.cropId) || D.COMMODITIES[0];
+  const facility = resolveStorageFacility(commodity);
+  const qty = storageCalc.qty;
+  if (!(qty > 0)) return `<p class="text-sm text-muted-foreground text-center py-4">${t('Enter how many quintals you want to store.')}</p>`;
+  const r = storageEconomics({ commodity, quantity: qty, days: storageCalc.days, facility });
+  const cmp = compareHoldPeriods({ commodity, quantity: qty, facility });
+  const where = facility ? facility.name : t('at the farm (no storage)');
+
+  let tone = 'bg-accent/20 text-accent-foreground';
+  let verdict;
+  if (r.unsuitable) {
+    verdict = `${esc(facility.name)} ${t('is not suited to storing')} ${esc(commodity.name)}. ${t('Pick a different facility.')}`;
+  } else if (r.better === 'store') {
+    tone = 'bg-primary/10 text-primary';
+    verdict = `${t('Holding')} ${r.days} ${t('days')} ${t('could earn about')} <b>${money(r.gainPerQtl)}/qtl</b> ${t('more')} — <b>${inr(r.totalGain)}</b> ${t('on')} ${qty} qtl.`;
+  } else {
+    verdict = `${t('Sell now.')} ${t('Holding')} ${r.days} ${t('days')} ${t('is expected to lose')} <b>${money(Math.abs(r.gainPerQtl))}/qtl</b> (${inr(Math.abs(r.totalGain))} ${t('on')} ${qty} qtl).`;
+  }
+  const row = (label, value, cls = '') => `<div class="flex justify-between text-sm py-1.5 border-b border-border last:border-0"><span class="text-muted-foreground">${label}</span><span class="font-bold ${cls}">${value}</span></div>`;
+  return `
+    <div class="rounded-xl p-3 text-sm font-semibold ${tone}" role="status">${verdict}</div>
+    <div class="mt-3">
+      ${row(t('Sell today (best mandi)'), `${money(r.sellNow)}/qtl`)}
+      ${row(`${t('Expected price in')} ${r.days} ${t('days')}`, `${money(r.projectedPrice)}/qtl`)}
+      ${row(t('Spoilage loss'), `− ${money(r.spoilageLoss)} (${r.spoilPct.toFixed(1)}%)`, 'text-destructive')}
+      ${row(`${t('Storage cost')} · ${esc(where)}`, `− ${money(r.storageCost)}`, 'text-destructive')}
+      ${row(t('Net if held'), `${money(r.netHold)}/qtl`, r.gainPerQtl >= 0 ? 'text-primary' : 'text-destructive')}
+    </div>
+    <div class="mt-3 overflow-x-auto"><table class="w-full text-xs">
+      <thead><tr class="text-muted-foreground text-left"><th class="py-1 font-semibold">${t('Hold for')}</th><th class="py-1 font-semibold">${t('Per quintal')}</th><th class="py-1 font-semibold text-right">${t('Total')}</th></tr></thead>
+      <tbody>${cmp.rows.map((x) => `<tr class="${cmp.best && cmp.best.days === x.days ? 'bg-primary/10 font-bold' : ''}"><td class="py-1 px-1">${x.days} ${t('days')}</td><td class="py-1">${x.gainPerQtl >= 0 ? '+' : '−'}${money(Math.abs(x.gainPerQtl))}</td><td class="py-1 px-1 text-right">${x.totalGain >= 0 ? '+' : '−'}${inr(Math.abs(x.totalGain))}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="text-[11px] text-muted-foreground mt-3">${t('Estimate only: assumes the recent price trend continues at 40% strength and uses typical spoilage rates. Mandi prices can reverse — check Market Intelligence before you decide.')}</p>`;
+}
+
+function storageCalculatorHtml() {
+  return card(`
+    <div class="flex items-center gap-2 mb-3"><span class="text-primary">${icon('scale', 'w-5 h-5')}</span><h3 class="font-extrabold">${t('Is storing worth it?')}</h3></div>
+    <div class="grid grid-cols-2 gap-3">
+      <div><label for="sc-crop" class="text-xs font-bold text-muted-foreground">${t('Crop')}</label>
+        <select id="sc-crop" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1">${D.COMMODITIES.map((c) => `<option value="${esc(c.id)}" ${c.id === storageCalc.cropId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label for="sc-qty" class="text-xs font-bold text-muted-foreground">${t('Quantity (quintals)')}</label>
+        <input id="sc-qty" type="number" inputmode="decimal" min="1" max="100000" step="1" value="${esc(storageCalc.qty)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1"></div>
+    </div>
+    <div class="mt-3"><label for="sc-fac" class="text-xs font-bold text-muted-foreground">${t('Storage')}</label>
+      <select id="sc-fac" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1">
+        <option value="best" ${storageCalc.facilityId === 'best' ? 'selected' : ''}>${t('Best match for this crop')}</option>
+        ${D.STORAGE_FACILITIES.map((f) => `<option value="${esc(f.id)}" ${f.id === storageCalc.facilityId ? 'selected' : ''}>${esc(f.name)} — ${money(f.ratePerDay)}/qtl/day</option>`).join('')}
+        <option value="farm" ${storageCalc.facilityId === 'farm' ? 'selected' : ''}>${t('Keep it at the farm (no storage cost)')}</option>
+      </select></div>
+    <div class="mt-3"><label for="sc-days" class="text-xs font-bold text-muted-foreground">${t('Hold for')}: <span id="sc-days-val">${storageCalc.days}</span> ${t('days')}</label>
+      <input id="sc-days" type="range" min="1" max="60" step="1" value="${storageCalc.days}" class="w-full mt-1 accent-[var(--primary)]"></div>
+    <div id="sc-result" class="mt-4">${storageResultHtml()}</div>
+  `, 'mb-1');
+}
+
+function wireStorageCalculator(root) {
+  const result = root.querySelector('#sc-result');
+  if (!result) return;
+  const refresh = () => { result.innerHTML = storageResultHtml(); };
+  root.querySelector('#sc-crop').addEventListener('change', (e) => { storageCalc.cropId = e.target.value; refresh(); });
+  root.querySelector('#sc-fac').addEventListener('change', (e) => { storageCalc.facilityId = e.target.value; refresh(); });
+  root.querySelector('#sc-qty').addEventListener('input', (e) => { storageCalc.qty = clamp(toNumber(e.target.value, 0), 0, 100000); refresh(); });
+  root.querySelector('#sc-days').addEventListener('input', (e) => {
+    storageCalc.days = clamp(toNumber(e.target.value, 14), 1, 60);
+    root.querySelector('#sc-days-val').textContent = storageCalc.days;
+    refresh();
+  });
+}
+
+// --- shared trips ---
+
+function tripProvider(trip) { return D.TRANSPORT_PROVIDERS.find((p) => p.id === trip.providerId); }
+
+function tripQuoteHtml(trip, qty) {
+  if (!(qty > 0)) return `<p class="text-xs text-muted-foreground">${t('Enter how many quintals you want to send.')}</p>`;
+  const q = sharedTripCost(trip, qty);
+  if (!q.fits) return `<p class="text-xs font-semibold text-destructive" role="alert">${q.seatsLeft > 0 ? `${t('Only')} ${q.seatsLeft} ${t('quintals of space left on this trip.')}` : t('This trip is full.')}</p>`;
+  return `
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="bg-muted rounded-xl p-2"><div class="text-[10px] font-semibold text-muted-foreground">${t('Per quintal')}</div><div class="font-extrabold text-sm">${money(q.perQtl)}</div></div>
+      <div class="bg-muted rounded-xl p-2"><div class="text-[10px] font-semibold text-muted-foreground">${t('Your share')}</div><div class="font-extrabold text-sm">${inr(q.myCost)}</div></div>
+      <div class="bg-primary/10 rounded-xl p-2"><div class="text-[10px] font-semibold text-primary">${t('You save')}</div><div class="font-extrabold text-sm text-primary">${inr(q.saving)}</div></div>
+    </div>
+    <p class="text-[11px] text-muted-foreground mt-2">${t('Alone you would pay')} ${inr(q.soloCost)} ${t('for a')} ${esc(trip.soloVehicle)}. ${t('At full load this trip costs')} ${money(q.totalCost / trip.capacityQtl)}/qtl.</p>`;
+}
+
+function sharedTripCardHtml(trip, booking) {
+  const provider = tripProvider(trip);
+  const mine = booking ? Math.max(0, Number(booking.qty) || 0) : 0;
+  const filled = clamp(((trip.bookedQtl + mine) / trip.capacityQtl) * 100, 0, 100);
+  const left = Math.max(0, trip.capacityQtl - trip.bookedQtl - mine);
+  return `
+    <div class="card p-4" data-trip="${esc(trip.id)}">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="font-bold">${esc(trip.route)}</div>
+          <div class="text-xs text-muted-foreground mt-0.5">${esc(trip.when)} · ${esc(trip.vehicle)}${provider ? ` · ${esc(provider.name)}` : ''}</div>
+        </div>
+        <div class="text-right shrink-0"><div class="text-xs font-bold ${left ? 'text-primary' : 'text-destructive'}">${left ? `${left} ${t('qtl left')}` : t('Full')}</div></div>
+      </div>
+      <div class="mt-3 h-2 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(filled)}" aria-label="${t('Truck filled')}"><div class="h-full bg-primary rounded-full" style="width:${filled}%"></div></div>
+      <div class="text-[10px] text-muted-foreground mt-1">${trip.bookedQtl + mine} / ${trip.capacityQtl} qtl ${t('booked')}</div>
+      ${booking ? `
+        <div class="mt-3 rounded-xl bg-primary/10 text-primary p-3 text-sm font-semibold flex items-center gap-2">${icon('checkCircle', 'w-4 h-4 shrink-0')}<span>${t('Your seat')}: ${mine} qtl · ${inr(booking.myCost)}</span></div>
+        <button data-cancel-trip="${esc(trip.id)}" class="mt-2 w-full border border-border text-sm font-bold py-2 rounded-lg hover:bg-muted transition">${t('Cancel my booking')}</button>`
+      : `
+        <div class="mt-3"><label for="st-qty-${esc(trip.id)}" class="text-xs font-bold text-muted-foreground">${t('Quantity (quintals)')}</label>
+          <input id="st-qty-${esc(trip.id)}" data-trip-qty type="number" inputmode="decimal" min="1" max="${trip.capacityQtl}" step="1" value="${Math.min(10, trip.capacityQtl - trip.bookedQtl) || ''}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1"></div>
+        <div class="mt-3" data-trip-quote></div>
+        <button data-book-trip="${esc(trip.id)}" class="mt-3 w-full bg-primary text-primary-foreground text-sm font-bold py-2 rounded-lg hover:opacity-90 transition disabled:opacity-40">${t('Book a seat')}</button>`}
+    </div>`;
+}
+
+function sharedTripsHtml() {
+  const bookings = store.get().sharedTripBookings;
+  return `
+    ${card(`<div class="flex gap-2 text-sm">${icon('info', 'w-4 h-4 text-primary shrink-0 mt-0.5')}<span>${t('Share one truck with other farmers heading to the same mandi. The trip cost is split across every quintal on board, so your cost per quintal falls as the truck fills.')}</span></div>`, 'p-3')}
+    ${D.SHARED_TRIPS.map((trip) => sharedTripCardHtml(trip, bookings[trip.id])).join('')}`;
+}
+
+function wireSharedTrips(root, rerender) {
+  root.querySelectorAll('[data-trip]').forEach((cardEl) => {
+    const trip = D.SHARED_TRIPS.find((x) => x.id === cardEl.dataset.trip);
+    const input = cardEl.querySelector('[data-trip-qty]');
+    const quote = cardEl.querySelector('[data-trip-quote]');
+    const bookBtn = cardEl.querySelector('[data-book-trip]');
+    if (input && quote && bookBtn) {
+      const refresh = () => {
+        const qty = toNumber(input.value, 0);
+        quote.innerHTML = tripQuoteHtml(trip, qty);
+        bookBtn.disabled = !sharedTripCost(trip, qty).fits;
+      };
+      input.addEventListener('input', refresh);
+      refresh();
+      bookBtn.addEventListener('click', () => {
+        const qty = toNumber(input.value, 0);
+        const q = sharedTripCost(trip, qty);
+        if (!q.fits) return;
+        store.setSharedTripBooking(trip.id, { qty, perQtl: q.perQtl, myCost: q.myCost, at: Date.now() });
+        toast(`Seat booked: ${qty} qtl on ${trip.route}`, { tone: 'success', icon: 'truck' });
+        rerender();
+      });
+    }
+    cardEl.querySelector('[data-cancel-trip]')?.addEventListener('click', () => {
+      store.clearSharedTripBooking(trip.id);
+      toast(`Booking cancelled for ${trip.route}`, { icon: 'truck' });
+      rerender();
+    });
+  });
+}
+
 function renderLogistics() {
   const html = `<div class="page-photo-bg" style="background-image:url('./assets/logistics-hero.jpg')"></div>` + pageWrap(`
     <div class="relative z-10 px-4 md:px-6 pt-6 pb-2">
@@ -1309,8 +1480,9 @@ function renderLogistics() {
       <p id="logistics-locate-status" class="hidden text-xs text-white/90 drop-shadow text-center mt-1.5"></p>
     </div>
     <div class="px-4 md:px-6 flex gap-2 mb-4" id="logistics-tabs">
-      <button data-tab="transport" class="log-tab flex-1 text-sm font-bold py-2.5 rounded-xl border bg-white/95 backdrop-blur shadow-soft">${icon('truck', 'w-4 h-4 inline mr-1')}Transport</button>
-      <button data-tab="storage" class="log-tab flex-1 text-sm font-bold py-2.5 rounded-xl border bg-white/95 backdrop-blur shadow-soft">${icon('snowflake', 'w-4 h-4 inline mr-1')}Storage</button>
+      <button data-tab="transport" class="log-tab flex-1 text-sm font-bold py-2.5 rounded-xl border bg-white/95 backdrop-blur shadow-soft">${icon('truck', 'w-4 h-4 inline mr-1')}${t('Transport')}</button>
+      <button data-tab="shared" class="log-tab flex-1 text-sm font-bold py-2.5 rounded-xl border bg-white/95 backdrop-blur shadow-soft">${icon('users', 'w-4 h-4 inline mr-1')}${t('Shared Trips')}</button>
+      <button data-tab="storage" class="log-tab flex-1 text-sm font-bold py-2.5 rounded-xl border bg-white/95 backdrop-blur shadow-soft">${icon('snowflake', 'w-4 h-4 inline mr-1')}${t('Storage')}</button>
     </div>
     <div class="px-4 md:px-6 space-y-3" id="logistics-list"></div>
   `);
@@ -1328,7 +1500,7 @@ function renderLogistics() {
             <div class="mt-1">${stars(p.rating)}</div>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-extrabold text-primary">${inr(p.ratePerKm)}<span class="text-xs font-bold text-muted-foreground">/km</span></div>
+            <div class="font-extrabold text-primary">${money(p.ratePerKm)}<span class="text-xs font-bold text-muted-foreground">/km</span></div>
             <div class="text-[10px] text-muted-foreground">${p.eta}</div>
           </div>
         </div>
@@ -1354,7 +1526,7 @@ function renderLogistics() {
             <div class="mt-1">${stars(s.rating)}</div>
           </div>
           <div class="text-right shrink-0">
-            <div class="font-extrabold text-primary">${inr(s.ratePerDay)}<span class="text-xs font-bold text-muted-foreground">/qtl/day</span></div>
+            <div class="font-extrabold text-primary">${money(s.ratePerDay)}<span class="text-xs font-bold text-muted-foreground">/qtl/day</span></div>
             <div class="text-[10px] text-muted-foreground">${s.capacity}</div>
           </div>
         </div>
@@ -1369,8 +1541,7 @@ function renderLogistics() {
     let tab = 'transport';
     let userCoords = null;
     const list = root.querySelector('#logistics-list');
-    const bookedTransport = new Set();
-    const bookedStorage = new Set();
+    const isBooked = (type, name) => store.get().bookings.some((b) => b.type === type && b.name === name);
 
     function styleTabs() {
       root.querySelectorAll('.log-tab').forEach((b) => {
@@ -1386,23 +1557,28 @@ function renderLogistics() {
         transportItems = [...transportItems].sort((a, b) => distanceKm(userCoords.lat, userCoords.lon, a.lat, a.lon) - distanceKm(userCoords.lat, userCoords.lon, b.lat, b.lon));
         storageItems = [...storageItems].sort((a, b) => distanceKm(userCoords.lat, userCoords.lon, a.lat, a.lon) - distanceKm(userCoords.lat, userCoords.lon, b.lat, b.lon));
       }
+      if (tab === 'shared') {
+        list.innerHTML = sharedTripsHtml();
+        wireSharedTrips(list, render);
+        return;
+      }
       list.innerHTML = tab === 'transport'
-        ? transportItems.map((p) => transportCard(p, bookedTransport.has(p.id), userCoords ? fmtKm(distanceKm(userCoords.lat, userCoords.lon, p.lat, p.lon)) : null)).join('')
-        : storageItems.map((s) => storageCard(s, bookedStorage.has(s.id), userCoords ? fmtKm(distanceKm(userCoords.lat, userCoords.lon, s.lat, s.lon)) : null)).join('');
+        ? transportItems.map((p) => transportCard(p, isBooked('transport', p.name), userCoords ? fmtKm(distanceKm(userCoords.lat, userCoords.lon, p.lat, p.lon)) : null)).join('')
+        : storageCalculatorHtml() + storageItems.map((s) => storageCard(s, isBooked('storage', s.name), userCoords ? fmtKm(distanceKm(userCoords.lat, userCoords.lon, s.lat, s.lon)) : null)).join('');
+      if (tab === 'storage') wireStorageCalculator(list);
 
       list.querySelectorAll('[data-book-transport]').forEach((btn) => btn.addEventListener('click', () => {
         const p = D.TRANSPORT_PROVIDERS.find((x) => x.id === btn.dataset.bookTransport);
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-1">Confirm Transport Booking</h3>
-            <p class="text-sm text-muted-foreground mb-4">Book ${p.name} (${p.vehicle}) at ${inr(p.ratePerKm)}/km — ${p.eta.toLowerCase()}?</p>
+            <p class="text-sm text-muted-foreground mb-4">Book ${p.name} (${p.vehicle}) at ${money(p.ratePerKm)}/km — ${p.eta.toLowerCase()}?</p>
             <div class="flex gap-2">
               <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
               <button id="confirm-book" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
             </div>
           </div>`, {
           onMount: (m) => m.querySelector('#confirm-book').addEventListener('click', () => {
-            bookedTransport.add(p.id);
             store.addBooking({ type: 'transport', name: p.name, date: new Date().toDateString().slice(4) });
             closeModal();
             toast(`Transport booked with ${p.name}`, { tone: 'success', icon: 'truck' });
@@ -1416,14 +1592,13 @@ function renderLogistics() {
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-1">Confirm Storage Reservation</h3>
-            <p class="text-sm text-muted-foreground mb-4">Reserve space at ${s.name} (${s.type}, ${s.tempRange}) for ${inr(s.ratePerDay)}/quintal/day?</p>
+            <p class="text-sm text-muted-foreground mb-4">Reserve space at ${s.name} (${s.type}, ${s.tempRange}) for ${money(s.ratePerDay)}/quintal/day?</p>
             <div class="flex gap-2">
               <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
               <button id="confirm-book" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
             </div>
           </div>`, {
           onMount: (m) => m.querySelector('#confirm-book').addEventListener('click', () => {
-            bookedStorage.add(s.id);
             store.addBooking({ type: 'storage', name: s.name, date: new Date().toDateString().slice(4) });
             closeModal();
             toast(`Storage reserved at ${s.name}`, { tone: 'success', icon: 'snowflake' });
