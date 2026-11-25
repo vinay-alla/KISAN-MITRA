@@ -1247,6 +1247,105 @@ function renderBuyers() {
 
 /* ---------------- FPO AGGREGATION ---------------- */
 
+/* ---------------- DYNAMIC FPO POOLING ---------------- */
+// Open rounds where members pool quintals toward a buyer's bulk threshold. Crossing a
+// volume tier raises the price for everyone in the pool — that is the bargaining-power effect.
+
+// Quintals of `crop` the farmer still has on offer (their own lots, minus anything already sold).
+function poolableQty(crop) {
+  const lots = [...(store.get().lots || []), ...D.LOTS];
+  const seen = new Set();
+  let total = 0;
+  for (const l of lots) {
+    if (!l || seen.has(l.id) || l.crop !== crop || l.status === 'Sold') continue;
+    seen.add(l.id);
+    total += Math.max(0, Number(l.quantity) || 0);
+  }
+  return total;
+}
+
+function poolCardHtml(pool, joinedFpo) {
+  const mine = Math.max(0, Number(store.get().poolContributions[pool.id]) || 0);
+  const st = poolStatus(pool, mine);
+  const available = poolableQty(pool.crop);
+  const tierMarks = pool.tiers.map((tr) => `<span class="absolute top-0 h-full w-0.5 bg-card/90" style="left:${clamp((tr.minQty / pool.targetQty) * 100, 0, 100)}%"></span>`).join('');
+  const nextLine = st.filled
+    ? `<span class="text-primary font-bold">${t('Pool is full — best price unlocked.')}</span>`
+    : st.next
+      ? `${t('Add')} <b>${st.toNext} qtl</b> ${t('more to unlock')} <b class="text-primary">+${money(st.next.uplift)}/qtl</b> ${t('for everyone')}.`
+      : '';
+  let action;
+  if (!joinedFpo) {
+    action = `<p class="text-xs text-muted-foreground mt-3">${t('Join the FPO above to contribute to pools.')}</p>`;
+  } else if (available <= 0 && !mine) {
+    action = `<a href="#/lots" class="mt-3 flex items-center justify-center gap-1.5 border border-border text-sm font-bold py-2 rounded-lg hover:bg-muted transition">${icon('package', 'w-4 h-4')}${t('List a')} ${esc(pool.crop)} ${t('lot to join')}</a>`;
+  } else {
+    action = `
+      <div class="mt-3 flex gap-2 items-end">
+        <div class="flex-1"><label for="pool-qty-${esc(pool.id)}" class="text-[11px] font-bold text-muted-foreground">${t('Your quantity (quintals)')} · ${t('max')} ${available || mine}</label>
+          <input id="pool-qty-${esc(pool.id)}" data-pool-qty type="number" inputmode="decimal" min="1" max="${available || mine}" step="1" value="${mine || Math.min(available, 20) || ''}" class="w-full border border-border rounded-xl px-3 py-2 bg-background mt-1"></div>
+        <button data-pool-save="${esc(pool.id)}" class="bg-primary text-primary-foreground text-sm font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition">${mine ? t('Update') : t('Join pool')}</button>
+        ${mine ? `<button data-pool-leave="${esc(pool.id)}" class="border border-border text-sm font-bold px-3 py-2.5 rounded-xl hover:bg-muted transition">${t('Leave')}</button>` : ''}
+      </div>
+      <p class="text-xs text-destructive font-semibold mt-1 min-h-[1rem]" data-pool-error role="alert"></p>`;
+  }
+  return `
+    <div class="card p-4" data-pool="${esc(pool.id)}">
+      <div class="flex items-start gap-3">
+        ${cropBadge(pool.crop, 'w-12 h-12', 'w-6 h-6')}
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2"><div class="font-bold">${esc(pool.crop)} · ${esc(pool.grade)}</div><span class="text-[10px] font-bold text-muted-foreground shrink-0">${t('Closes')} ${esc(pool.closes)}</span></div>
+          <div class="text-xs text-muted-foreground truncate">${esc(pool.buyer)}</div>
+        </div>
+      </div>
+      <div class="flex items-end justify-between mt-3">
+        <div><div class="text-[10px] font-semibold text-muted-foreground">${t('Pool price')}</div>
+          <div class="text-xl font-extrabold text-primary">${money(st.pricePerQtl)}<span class="text-xs font-bold text-muted-foreground">/qtl</span></div></div>
+        <div class="text-right"><div class="text-[10px] font-semibold text-muted-foreground">${t('Base')} ${money(pool.basePrice)}</div>
+          <div class="text-xs font-bold ${st.uplift ? 'text-primary' : 'text-muted-foreground'}">${st.uplift ? `+${money(st.uplift)} ${t('tier bonus')}` : t('No bonus yet')}</div></div>
+      </div>
+      <div class="relative mt-3 h-3 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuemin="0" aria-valuemax="${pool.targetQty}" aria-valuenow="${Math.min(st.total, pool.targetQty)}" aria-label="${t('Pool filled')}">
+        <div class="h-full bg-primary rounded-full" style="width:${st.progressPct}%"></div>${tierMarks}
+      </div>
+      <div class="flex justify-between text-[10px] text-muted-foreground mt-1"><span>${st.total} / ${pool.targetQty} qtl</span><span>${pool.tiers.map((tr) => `${tr.minQty} qtl: +${money(tr.uplift)}`).join(' · ')}</span></div>
+      <p class="text-xs mt-2">${nextLine}</p>
+      ${mine ? `<div class="mt-2 rounded-xl bg-primary/10 text-primary p-2.5 text-xs font-semibold">${t('You have pooled')} ${mine} qtl${st.myExtraEarnings > 0 ? ` · ${t('worth')} <b>${inr(st.myExtraEarnings)}</b> ${t('extra vs the base price')}` : ''}${st.upliftUnlockedByMe > 0 ? ` · ${t('your quantity unlocked the')} +${money(st.upliftUnlockedByMe)}/qtl ${t('tier for the whole pool')}` : ''}.</div>` : ''}
+      ${action}
+    </div>`;
+}
+
+function poolsSectionHtml(joinedFpo) {
+  return `
+    <h3 class="font-extrabold mb-1 text-white drop-shadow-md">${t('Open pooling rounds')}</h3>
+    <p class="text-xs text-white/90 drop-shadow mb-3">${t('The more quintals pooled, the higher the price the buyer pays — for every member.')}</p>
+    <div class="space-y-3" id="pools-list">${D.POOLS.map((pl) => poolCardHtml(pl, joinedFpo)).join('')}</div>`;
+}
+
+function wirePools(root, joinedFpo) {
+  const listEl = root.querySelector('#pools-list');
+  if (!listEl) return;
+  const rerender = () => { listEl.innerHTML = D.POOLS.map((pl) => poolCardHtml(pl, joinedFpo)).join(''); wirePools(root, joinedFpo); };
+  listEl.querySelectorAll('[data-pool]').forEach((cardEl) => {
+    const pool = D.POOLS.find((x) => x.id === cardEl.dataset.pool);
+    const errEl = cardEl.querySelector('[data-pool-error]');
+    cardEl.querySelector('[data-pool-save]')?.addEventListener('click', () => {
+      const qty = toNumber(cardEl.querySelector('[data-pool-qty]').value, 0);
+      const mine = Math.max(0, Number(store.get().poolContributions[pool.id]) || 0);
+      const max = poolableQty(pool.crop) || mine;
+      if (!(qty > 0)) { errEl.textContent = t('Enter a quantity above zero.'); return; }
+      if (qty > max) { errEl.textContent = `${t('You only have')} ${max} qtl ${t('of')} ${pool.crop} ${t('listed.')}`; return; }
+      store.setPoolContribution(pool.id, qty);
+      toast(`${qty} qtl pooled for ${pool.crop}`, { tone: 'success', icon: 'users' });
+      rerender();
+    });
+    cardEl.querySelector('[data-pool-leave]')?.addEventListener('click', () => {
+      store.clearPoolContribution(pool.id);
+      toast(`Left the ${pool.crop} pool`, { icon: 'users' });
+      rerender();
+    });
+  });
+}
+
 function renderFPO() {
   const F = D.FPO_INFO;
   const joined = store.get().fpoJoined;
@@ -1271,6 +1370,7 @@ function renderFPO() {
         <button id="fpo-toggle" class="w-full font-bold py-2.5 rounded-xl transition ${joined ? 'bg-primary/10 text-primary' : 'bg-primary text-primary-foreground'}">${joined ? '✓ You are a member' : 'Join this FPO'}</button>
       `)}
     </div>
+    <div class="px-4 md:px-6 mt-6" id="pools-section">${poolsSectionHtml(joined)}</div>
     <div class="px-4 md:px-6 mt-6">
       <h3 class="font-extrabold mb-3 text-white drop-shadow-md">${t('Why aggregate with an FPO?')}</h3>
       <div class="space-y-2">
@@ -1286,6 +1386,7 @@ function renderFPO() {
       toast(next ? `Joined ${F.name}` : 'Left the FPO', { tone: 'success', icon: 'users' });
       navigateTo('#/fpo', true);
     });
+    wirePools(root.querySelector('#pools-section'), store.get().fpoJoined);
   }
 
   return { html, mount };

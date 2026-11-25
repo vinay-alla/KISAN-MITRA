@@ -79,6 +79,20 @@ export const DICT = {
   'qtl left': { hi: 'क्विंटल बाकी', mr: 'क्विंटल शिल्लक' },
   'Share one truck with other farmers heading to the same mandi. The trip cost is split across every quintal on board, so your cost per quintal falls as the truck fills.': { hi: 'उसी मंडी जा रहे अन्य किसानों के साथ एक ट्रक साझा करें। किराया हर क्विंटल में बँटता है, इसलिए ट्रक भरने पर आपकी प्रति क्विंटल लागत घटती है।', mr: 'त्याच मंडीकडे जाणाऱ्या इतर शेतकऱ्यांसोबत एक ट्रक सामायिक करा. भाडे प्रत्येक क्विंटलमध्ये विभागले जाते, त्यामुळे ट्रक भरल्यावर तुमचा प्रति क्विंटल खर्च कमी होतो.' },
 
+  // fpo pooling
+  'Open pooling rounds': { hi: 'खुले पूलिंग राउंड', mr: 'खुले पूलिंग राउंड' },
+  'The more quintals pooled, the higher the price the buyer pays — for every member.': { hi: 'जितने ज़्यादा क्विंटल पूल होंगे, खरीदार उतनी ऊँची कीमत देगा — हर सदस्य के लिए।', mr: 'जितके जास्त क्विंटल एकत्र, खरेदीदार तितकी जास्त किंमत देतो — प्रत्येक सदस्यासाठी.' },
+  'Pool price': { hi: 'पूल कीमत', mr: 'पूल किंमत' },
+  'tier bonus': { hi: 'टियर बोनस', mr: 'टियर बोनस' },
+  'No bonus yet': { hi: 'अभी कोई बोनस नहीं', mr: 'अजून बोनस नाही' },
+  'Pool is full — best price unlocked.': { hi: 'पूल भर गया — सबसे अच्छी कीमत मिली।', mr: 'पूल भरला — सर्वोत्तम किंमत मिळाली.' },
+  'Join the FPO above to contribute to pools.': { hi: 'पूल में योगदान के लिए ऊपर एफपीओ से जुड़ें।', mr: 'पूलमध्ये योगदान देण्यासाठी वरील एफपीओमध्ये सामील व्हा.' },
+  'Your quantity (quintals)': { hi: 'आपकी मात्रा (क्विंटल)', mr: 'तुमचे प्रमाण (क्विंटल)' },
+  'Join pool': { hi: 'पूल से जुड़ें', mr: 'पूलमध्ये सामील व्हा' },
+  'Update': { hi: 'अपडेट करें', mr: 'अद्यतनित करा' },
+  'Leave': { hi: 'छोड़ें', mr: 'सोडा' },
+  'Enter a quantity above zero.': { hi: 'शून्य से अधिक मात्रा दर्ज करें।', mr: 'शून्यापेक्षा जास्त प्रमाण टाका.' },
+
   // page headings + subtitles (sectionHead)
   'Live temperature, rainfall and farming-specific weather alerts': { hi: 'लाइव तापमान, वर्षा और खेती से जुड़े मौसम अलर्ट', mr: 'थेट तापमान, पाऊस आणि शेतीशी संबंधित हवामान सूचना' },
   'Every lot, offer, order and payment in one digital record': { hi: 'हर लॉट, ऑफ़र, ऑर्डर और भुगतान एक डिजिटल रिकॉर्ड में', mr: 'प्रत्येक लॉट, ऑफर, ऑर्डर आणि पेमेंट एका डिजिटल नोंदीत' },
