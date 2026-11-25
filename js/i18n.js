@@ -2,6 +2,7 @@
 // current store language. Falls back to the original English string whenever a key is
 // missing, so untranslated copy never breaks — it just stays in English.
 import { store } from './store.js';
+import { esc } from './util.js';
 
 const LANG_CODE = { English: 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
 
@@ -269,5 +270,5 @@ export function t(str) {
 
 const GREETING = { en: 'Namaste', hi: 'नमस्ते', mr: 'नमस्कार' };
 export function greet(name) {
-  return `${GREETING[currentLangCode()]}, ${name}!`;
+  return `${GREETING[currentLangCode()]}, ${esc(name)}!`;
 }

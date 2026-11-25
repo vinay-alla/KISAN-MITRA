@@ -28,11 +28,11 @@ function stars(rating) {
 // CROP_STYLE), falling back to a tinted circle with a flat line-art icon otherwise.
 function cropBadge(cropName, box = 'w-12 h-12', iconSize = 'w-6 h-6', userPhoto = null) {
   if (userPhoto) {
-    return `<img src="${userPhoto}" alt="${cropName}" class="${box} rounded-xl object-cover shrink-0 ring-1 ring-black/5" />`;
+    return `<img src="${esc(userPhoto)}" alt="${esc(cropName)}" class="${box} rounded-xl object-cover shrink-0 ring-1 ring-black/5" />`;
   }
   const s = D.cropStyle(cropName);
   if (s.photo) {
-    return `<img src="${s.photo}" alt="${cropName}" class="${box} rounded-xl object-cover shrink-0 ring-1 ring-black/5" />`;
+    return `<img src="${s.photo}" alt="${esc(cropName)}" class="${box} rounded-xl object-cover shrink-0 ring-1 ring-black/5" />`;
   }
   return `<div class="${box} rounded-xl flex items-center justify-center shrink-0" style="background:${s.bg};color:${s.fg}">${icon(s.icon, iconSize)}</div>`;
 }
@@ -341,7 +341,7 @@ function renderHome() {
     <div class="relative z-10 px-4 md:px-6 pt-6 flex items-start justify-between">
       <div>
         <h1 class="font-display text-2xl font-extrabold text-white drop-shadow-md">${greet(farmer.name)}</h1>
-        <button id="locate-home-btn" class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-0.5 drop-shadow">${icon('pin', 'w-4 h-4')}<span id="locate-home-label">${farmer.location}</span> <span class="text-[10px] underline underline-offset-2 opacity-90">(update)</span></button>
+        <button id="locate-home-btn" class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-0.5 drop-shadow">${icon('pin', 'w-4 h-4')}<span id="locate-home-label">${esc(farmer.location)}</span> <span class="text-[10px] underline underline-offset-2 opacity-90">(update)</span></button>
       </div>
       <div class="text-right bg-white/85 backdrop-blur rounded-xl px-2.5 py-1.5 shadow-soft shrink-0">
         <div class="text-xl font-extrabold text-primary">${farmer.weather}°C</div>
@@ -367,7 +367,7 @@ function renderHome() {
           <div class="min-w-0">
             <div class="font-extrabold text-lg">${lot.crop}</div>
             <div class="text-sm text-muted-foreground">${lot.quantity} ${lot.unit} · ${lot.grade}</div>
-            <div class="text-xs text-muted-foreground mt-0.5">Harvest: ${lot.harvestDate} · ${lot.location}</div>
+            <div class="text-xs text-muted-foreground mt-0.5">Harvest: ${esc(lot.harvestDate)} · ${esc(lot.location)}</div>
           </div>
         </div>
       `)}
@@ -513,7 +513,7 @@ function mandiRowHtml(m, i) {
   return `
     <div class="card p-3 flex items-center justify-between ${i === 0 ? 'border-primary/40' : ''}">
       <div>
-        <div class="font-bold text-sm flex items-center gap-2">${m.name} ${i === 0 ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">TOP</span>` : ''}</div>
+        <div class="font-bold text-sm flex items-center gap-2">${esc(m.name)} ${i === 0 ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">TOP</span>` : ''}</div>
         <div class="text-xs text-muted-foreground">${m.arrivals} · ${m.distance}</div>
       </div>
       <div class="text-right">
@@ -564,7 +564,7 @@ function renderMarket(initialId) {
       <div class="flex items-center gap-2 mb-4">
         ${cropBadge(commodity.name, 'w-11 h-11', 'w-6 h-6')}
         <div>
-          <div class="font-extrabold text-lg">${commodity.name}</div>
+          <div class="font-extrabold text-lg">${esc(commodity.name)}</div>
           <div class="text-xs text-muted-foreground">Best price today: <b class="text-foreground" id="today-price">${inr(todayPrice)}</b>/${commodity.unit}</div>
         </div>
         <div class="ml-auto">${trendBadge(commodity.forecast)}</div>
@@ -586,7 +586,7 @@ function renderMarket(initialId) {
         ${[...commodity.mandis].sort((a, b) => b.price - a.price).map(mandiRowHtml).join('')}
       </div>
       <p id="live-note" class="text-[10px] text-muted-foreground mt-2"></p>
-      <a href="#/lots" id="create-lot-cta" class="mt-5 w-full inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-bold py-3 rounded-xl hover:opacity-90 transition">${icon('plus', 'w-4 h-4')}Create Lot for ${commodity.name}</a>
+      <a href="#/lots" id="create-lot-cta" class="mt-5 w-full inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-bold py-3 rounded-xl hover:opacity-90 transition">${icon('plus', 'w-4 h-4')}Create Lot for ${esc(commodity.name)}</a>
     `;
   }
 
@@ -596,7 +596,7 @@ function renderMarket(initialId) {
       <p class="text-white/90 mt-1 drop-shadow">${t('Real-time prices, AI forecasts &amp; the best time to sell')}</p>
     </div>
     <div class="px-4 md:px-6 flex gap-2 flex-wrap mb-4" id="commodity-chips">
-      ${D.COMMODITIES.map((c) => `<button data-c="${c.id}" class="commodity-btn inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border shadow-soft ${c.id === selected.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-white/95 backdrop-blur border-border text-muted-foreground'}">${cropThumb(c.name)}${c.name}</button>`).join('')}
+      ${D.COMMODITIES.map((c) => `<button data-c="${c.id}" class="commodity-btn inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border shadow-soft ${c.id === selected.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-white/95 backdrop-blur border-border text-muted-foreground'}">${cropThumb(c.name)}${esc(c.name)}</button>`).join('')}
     </div>
     <div class="px-4 md:px-6">
       <div class="card p-4" id="market-body">${body(selected)}</div>
@@ -674,7 +674,7 @@ function renderLots() {
             <span class="text-[10px] font-bold px-2 py-1 rounded-full ${statusTone(status)}">${status}</span>
           </div>
           <div class="text-xs text-muted-foreground">${lot.quantity} ${lot.unit} · ${lot.grade}</div>
-          <div class="text-xs text-muted-foreground">${lot.id} · Harvest ${lot.harvestDate}</div>
+          <div class="text-xs text-muted-foreground">${lot.id} · Harvest ${esc(lot.harvestDate)}</div>
         </div>
         ${icon('chevronRight', 'w-4 h-4 text-muted-foreground shrink-0')}
       </a>`;
@@ -694,7 +694,7 @@ function renderLots() {
           <h3 class="font-extrabold text-lg mb-3">${t('Create New Lot')}</h3>
           <label class="text-xs font-bold text-muted-foreground">Crop</label>
           <select id="nl-crop" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3">
-            ${D.COMMODITIES.map((c) => `<option value="${c.name}">${c.name}</option>`).join('')}
+            ${D.COMMODITIES.map((c) => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}
           </select>
           <label class="text-xs font-bold text-muted-foreground">Quantity (Quintals)</label>
           <input id="nl-qty" type="number" value="10" min="1" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
@@ -705,7 +705,7 @@ function renderLots() {
           <label class="text-xs font-bold text-muted-foreground">Harvest Date</label>
           <input id="nl-date" type="date" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
           <label class="text-xs font-bold text-muted-foreground">Location</label>
-          <input id="nl-location" value="${currentFarmer().location}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
+          <input id="nl-location" value="${esc(currentFarmer().location)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
           <label class="text-xs font-bold text-muted-foreground">Photo (optional)</label>
           <div class="mt-1 mb-4">
             <button type="button" id="nl-photo-btn" class="w-full flex items-center justify-center gap-1.5 border border-dashed border-border rounded-xl py-3 text-sm font-bold text-muted-foreground hover:border-primary hover:text-primary transition">${icon('camera', 'w-4 h-4')}Add a photo of the produce</button>
@@ -787,7 +787,7 @@ function renderLotDetail(id) {
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${bid.buyer}</span>
+              <span class="font-bold">${esc(bid.buyer)}</span>
               ${idx === 0 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground">${t('Best Bid')}</span>` : ''}
               ${bid.live ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky/15 text-sky">${t('Live')}</span>` : ''}
             </div>
@@ -820,7 +820,7 @@ function renderLotDetail(id) {
               ${o.best ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground">BEST</span>` : ''}
               ${o.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
             </div>
-            <div class="text-xs text-muted-foreground mt-1">${o.buyer} · ${o.distance} · ${o.pickup}</div>
+            <div class="text-xs text-muted-foreground mt-1">${esc(o.buyer)} · ${o.distance} · ${o.pickup}</div>
             <div class="mt-1">${stars(o.reliability)}</div>
           </div>
           <div class="text-right shrink-0">
@@ -859,7 +859,7 @@ function renderLotDetail(id) {
       <a href="#/lots" class="w-8 h-8 rounded-full ${hasHero ? 'bg-white/90 backdrop-blur' : 'border border-border'} flex items-center justify-center shrink-0">${icon('arrowLeft', 'w-4 h-4')}</a>
       <div>
         <h1 class="text-xl font-extrabold ${hasHero ? 'text-white drop-shadow-md' : ''}">${lot.crop} · ${lot.id}</h1>
-        <p class="text-sm ${hasHero ? 'text-white/90 drop-shadow' : 'text-muted-foreground'}">${lot.quantity} ${lot.unit} · ${lot.grade} · Harvest ${lot.harvestDate}</p>
+        <p class="text-sm ${hasHero ? 'text-white/90 drop-shadow' : 'text-muted-foreground'}">${lot.quantity} ${lot.unit} · ${lot.grade} · Harvest ${esc(lot.harvestDate)}</p>
       </div>
       <span class="ml-auto text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${hasHero ? 'bg-white/90 backdrop-blur text-foreground' : statusTone(status)}">${status}</span>
     </div>
@@ -887,7 +887,7 @@ function renderLotDetail(id) {
       openModal(`
         <div class="p-5">
           <h3 class="font-extrabold text-lg mb-1">${t('Accept This Bid')}</h3>
-          <p class="text-sm text-muted-foreground mb-4">Accept ${bid.buyer}'s bid for ${lot.crop} at <b class="text-foreground">${inr(bid.price)}/qtl</b>? Other bids on this lot will be declined.</p>
+          <p class="text-sm text-muted-foreground mb-4">Accept ${esc(bid.buyer)}'s bid for ${lot.crop} at <b class="text-foreground">${inr(bid.price)}/qtl</b>? Other bids on this lot will be declined.</p>
           <div class="flex gap-2">
             <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
             <button id="confirm-accept-bid" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
@@ -915,7 +915,7 @@ function renderLotDetail(id) {
       openModal(`
         <div class="p-5">
           <h3 class="font-extrabold text-lg mb-1">Confirm Offer</h3>
-          <p class="text-sm text-muted-foreground mb-4">Accept ${opt.buyer}'s offer for ${lot.crop} at <b class="text-foreground">${inr(opt.net)}/qtl</b> net (after transport &amp; commission)?</p>
+          <p class="text-sm text-muted-foreground mb-4">Accept ${esc(opt.buyer)}'s offer for ${lot.crop} at <b class="text-foreground">${inr(opt.net)}/qtl</b> net (after transport &amp; commission)?</p>
           <div class="flex gap-2">
             <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
             <button id="confirm-accept" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
@@ -959,8 +959,8 @@ function receiptModalHtml(o, farmer) {
         <div class="flex justify-between"><span class="text-muted-foreground">Order ID</span><span class="font-semibold">${o.id}</span></div>
         <div class="flex justify-between"><span class="text-muted-foreground">Lot</span><span class="font-semibold">${o.lotId}</span></div>
         <div class="flex justify-between"><span class="text-muted-foreground">Crop</span><span class="font-semibold">${o.crop} · ${o.quantity} ${o.unit}</span></div>
-        <div class="flex justify-between"><span class="text-muted-foreground">Buyer</span><span class="font-semibold">${o.buyer}</span></div>
-        <div class="flex justify-between"><span class="text-muted-foreground">Farmer</span><span class="font-semibold">${farmer.fullName}</span></div>
+        <div class="flex justify-between"><span class="text-muted-foreground">Buyer</span><span class="font-semibold">${esc(o.buyer)}</span></div>
+        <div class="flex justify-between"><span class="text-muted-foreground">Farmer</span><span class="font-semibold">${esc(farmer.fullName)}</span></div>
         <div class="flex justify-between"><span class="text-muted-foreground">Rate</span><span class="font-semibold">${inr(o.rate)}/qtl</span></div>
         <div class="flex justify-between"><span class="text-muted-foreground">Order Date</span><span class="font-semibold">${o.date}</span></div>
       </div>
@@ -997,8 +997,8 @@ function openPrintableReceipt(o, farmer) {
     <div class="row"><span>Order ID</span><b>${o.id}</b></div>
     <div class="row"><span>Lot</span><b>${o.lotId}</b></div>
     <div class="row"><span>Crop</span><b>${o.crop} · ${o.quantity} ${o.unit}</b></div>
-    <div class="row"><span>Buyer</span><b>${o.buyer}</b></div>
-    <div class="row"><span>Farmer</span><b>${farmer.fullName}</b></div>
+    <div class="row"><span>Buyer</span><b>${esc(o.buyer)}</b></div>
+    <div class="row"><span>Farmer</span><b>${esc(farmer.fullName)}</b></div>
     <div class="row"><span>Rate</span><b>${inr(o.rate)}/qtl</b></div>
     <div class="row"><span>Order Date</span><b>${o.date}</b></div>
     <div class="total"><span>Total Paid</span><span>${inr(o.amount)}</span></div>
@@ -1031,7 +1031,7 @@ function renderOrders() {
           </div>
           <div class="text-right">
             <div class="font-extrabold text-primary">${inr(o.amount)}</div>
-            <div class="text-[10px] text-muted-foreground">${inr(o.rate)}/qtl · ${o.buyer}</div>
+            <div class="text-[10px] text-muted-foreground">${inr(o.rate)}/qtl · ${esc(o.buyer)}</div>
           </div>
         </div>
         <div class="flex items-center mt-4 mb-1">
@@ -1075,7 +1075,7 @@ function renderOrders() {
       }));
       list.querySelectorAll('[data-record]').forEach((btn) => btn.addEventListener('click', () => {
         const o = orders.find((x) => x.id === btn.dataset.record);
-        const text = `Order ${o.id}\nLot: ${o.lotId}\nCrop: ${o.crop} (${o.quantity} ${o.unit})\nBuyer: ${o.buyer}\nRate: ${inr(o.rate)}/qtl\nAmount: ${inr(o.amount)}\nDate: ${o.date}`;
+        const text = `Order ${o.id}\nLot: ${o.lotId}\nCrop: ${o.crop} (${o.quantity} ${o.unit})\nBuyer: ${esc(o.buyer)}\nRate: ${inr(o.rate)}/qtl\nAmount: ${inr(o.amount)}\nDate: ${o.date}`;
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-3">Digital Transaction Record</h3>
@@ -1136,7 +1136,7 @@ function buyerVerificationHtml(b) {
   return `
     <div class="p-5">
       <div class="flex items-center gap-2 flex-wrap mb-1">
-        <h3 class="font-extrabold text-lg">${b.name}</h3>
+        <h3 class="font-extrabold text-lg">${esc(b.name)}</h3>
         ${b.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified Buyer</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified Buyer</span>`}
       </div>
       <p class="text-xs text-muted-foreground mb-3">${b.type} · ${t('Verify the full offer, not just the quoted price')}</p>
@@ -1201,7 +1201,7 @@ function renderBuyers() {
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${b.name}</span>
+              <span class="font-bold">${esc(b.name)}</span>
               ${b.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
             </div>
             <div class="text-xs text-muted-foreground mt-0.5">${b.type} · ${b.distance}</div>
@@ -1220,7 +1220,7 @@ function renderBuyers() {
         </div>` : ''}
         <div class="flex gap-2 mt-3">
           <button data-verify="${b.id}" class="flex-1 border border-border text-sm font-bold py-2 rounded-lg hover:bg-muted transition">${t('View Verification')}</button>
-          <button data-quote="${b.name}" class="flex-1 bg-primary text-primary-foreground text-sm font-bold py-2 rounded-lg hover:opacity-90 transition">${t('Request Quote')}</button>
+          <button data-quote="${esc(b.name)}" class="flex-1 bg-primary text-primary-foreground text-sm font-bold py-2 rounded-lg hover:opacity-90 transition">${t('Request Quote')}</button>
         </div>
       </div>`;
   }
@@ -1359,7 +1359,7 @@ function renderFPO() {
         <div class="flex items-center gap-3 mb-3">
           <div class="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">${icon('users', 'w-6 h-6')}</div>
           <div>
-            <div class="font-extrabold">${F.name}</div>
+            <div class="font-extrabold">${esc(F.name)}</div>
             <div class="text-xs text-muted-foreground">${F.members} members</div>
           </div>
         </div>
@@ -1594,7 +1594,7 @@ function renderLogistics() {
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${p.name}</span>
+              <span class="font-bold">${esc(p.name)}</span>
               ${p.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
             </div>
             <div class="text-xs text-muted-foreground mt-0.5">${p.vehicle} · ${liveDist || p.distance} away${liveDist ? ' <span class="text-primary font-semibold">· live</span>' : ''}</div>
@@ -1620,7 +1620,7 @@ function renderLogistics() {
         <div class="flex items-start justify-between gap-2">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${s.name}</span>
+              <span class="font-bold">${esc(s.name)}</span>
               ${s.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
             </div>
             <div class="text-xs text-muted-foreground mt-0.5">${s.type} · ${s.tempRange} · ${liveDist || s.distance} away${liveDist ? ' <span class="text-primary font-semibold">· live</span>' : ''}</div>
@@ -1673,7 +1673,7 @@ function renderLogistics() {
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-1">Confirm Transport Booking</h3>
-            <p class="text-sm text-muted-foreground mb-4">Book ${p.name} (${p.vehicle}) at ${money(p.ratePerKm)}/km — ${p.eta.toLowerCase()}?</p>
+            <p class="text-sm text-muted-foreground mb-4">Book ${esc(p.name)} (${p.vehicle}) at ${money(p.ratePerKm)}/km — ${p.eta.toLowerCase()}?</p>
             <div class="flex gap-2">
               <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
               <button id="confirm-book" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
@@ -1693,7 +1693,7 @@ function renderLogistics() {
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-1">Confirm Storage Reservation</h3>
-            <p class="text-sm text-muted-foreground mb-4">Reserve space at ${s.name} (${s.type}, ${s.tempRange}) for ${money(s.ratePerDay)}/quintal/day?</p>
+            <p class="text-sm text-muted-foreground mb-4">Reserve space at ${esc(s.name)} (${s.type}, ${s.tempRange}) for ${money(s.ratePerDay)}/quintal/day?</p>
             <div class="flex gap-2">
               <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
               <button id="confirm-book" class="flex-1 bg-primary text-primary-foreground rounded-xl py-2.5 font-semibold">Confirm</button>
@@ -1824,7 +1824,7 @@ function renderCropSuggestions() {
           ${cropBadge(s.name, 'w-12 h-12', 'w-6 h-6')}
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${s.name}</span>
+              <span class="font-bold">${esc(s.name)}</span>
               ${bestMatch
                 ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground">${icon('badgeCheck', 'w-3 h-3')}${t('Best Match for Your Soil')}</span>`
                 : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">${t('Also Suitable')}</span>`}
@@ -1852,7 +1852,7 @@ function renderCropSuggestions() {
           <div class="flex items-start gap-2">
             ${icon('pin', 'w-4 h-4 text-primary mt-0.5')}
             <div>
-              <div class="font-bold text-sm" id="csug-location">${farmer.location}</div>
+              <div class="font-bold text-sm" id="csug-location">${esc(farmer.location)}</div>
               <div class="text-xs text-primary font-semibold" id="csug-soil">${soil.type}</div>
             </div>
           </div>
@@ -1917,7 +1917,7 @@ function renderHistory() {
       [...(store.get().lots || []), ...D.LOTS].forEach((l) => entries.push({ sort: 1, html: row('package', 'bg-primary/10 text-primary', `${l.crop} Lot Created`, `${l.id} · ${l.quantity} ${l.unit} · ${l.grade}`, '', l.harvestDate) }));
       [...store.get().orders, ...D.ORDERS].forEach((o) => {
         const paid = o.stage >= D.ORDER_STAGES.length - 1;
-        entries.push({ sort: 3, html: row(paid ? 'checkCircle' : 'truck', paid ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground', `${o.crop} · ${o.quantity} ${o.unit}`, `${o.id} · ${o.buyer}`, inr(o.amount), D.ORDER_STAGES[o.stage]) });
+        entries.push({ sort: 3, html: row(paid ? 'checkCircle' : 'truck', paid ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground', `${o.crop} · ${o.quantity} ${o.unit}`, `${o.id} · ${esc(o.buyer)}`, inr(o.amount), D.ORDER_STAGES[o.stage]) });
       });
     }
 
@@ -2035,7 +2035,7 @@ function openEditProfileModal(fields) {
       <h3 class="font-extrabold text-lg mb-3">${t('Edit Profile')}</h3>
       ${fields.map((f) => `
         <label class="text-xs font-bold text-muted-foreground">${f.label}</label>
-        <input id="ep-${f.key}" value="${(f.value || '').replace(/"/g, '&quot;')}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
+        <input id="ep-${f.key}" value="${esc(f.value)}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
       `).join('')}
       <div class="flex gap-2">
         <button data-close class="flex-1 border border-border rounded-xl py-2.5 font-semibold">Cancel</button>
@@ -2066,9 +2066,9 @@ function renderFarmerProfile() {
         <div class="flex items-center gap-3">
           <div class="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-extrabold shrink-0">${initials(F.fullName)}</div>
           <div class="flex-1 min-w-0">
-            <div class="font-extrabold text-lg">${F.fullName}</div>
-            <div class="text-xs text-muted-foreground">${F.phone}</div>
-            <div class="text-xs text-muted-foreground">${F.location} · Member since ${F.memberSince}</div>
+            <div class="font-extrabold text-lg">${esc(F.fullName)}</div>
+            <div class="text-xs text-muted-foreground">${esc(F.phone)}</div>
+            <div class="text-xs text-muted-foreground">${esc(F.location)} · Member since ${esc(F.memberSince)}</div>
           </div>
           <button id="edit-profile-btn" class="text-xs font-bold text-primary shrink-0 inline-flex items-center gap-1">${icon('edit', 'w-3.5 h-3.5')}${t('Edit Profile')}</button>
         </div>
@@ -2104,7 +2104,7 @@ function renderFarmerProfile() {
         <div class="flex items-center gap-3 mb-3">
           ${icon('users', 'w-5 h-5 text-primary')}
           <div>
-            <div class="font-bold text-sm">${F.fpo}</div>
+            <div class="font-bold text-sm">${esc(F.fpo)}</div>
             <div class="text-xs text-muted-foreground">${t(st.fpoJoined !== false ? 'Active member' : 'Not a member')}</div>
           </div>
           <a href="#/fpo" class="ml-auto text-xs font-bold text-primary">${t('Manage')}</a>
@@ -2153,8 +2153,8 @@ function renderBuyerHome() {
     <div class="relative z-10 px-4 md:px-6 pt-6 flex items-start justify-between">
       <div>
         <h1 class="font-display text-2xl font-extrabold text-white drop-shadow-md">${greet(buyer.name)}</h1>
-        <button id="locate-home-btn" class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-0.5 drop-shadow">${icon('pin', 'w-4 h-4')}<span id="locate-home-label">${buyer.location}</span> <span class="text-[10px] underline underline-offset-2 opacity-90">(update)</span></button>
-        <div class="text-xs text-white/80 font-semibold mt-0.5 drop-shadow">${buyer.company}</div>
+        <button id="locate-home-btn" class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-0.5 drop-shadow">${icon('pin', 'w-4 h-4')}<span id="locate-home-label">${esc(buyer.location)}</span> <span class="text-[10px] underline underline-offset-2 opacity-90">(update)</span></button>
+        <div class="text-xs text-white/80 font-semibold mt-0.5 drop-shadow">${esc(buyer.company)}</div>
       </div>
       <div class="text-right bg-white/85 backdrop-blur rounded-xl px-2.5 py-1.5 shadow-soft shrink-0">
         <div class="text-xl font-extrabold text-primary">${buyer.weather}°C</div>
@@ -2192,7 +2192,7 @@ function renderBuyerHome() {
               <span class="font-bold">${l.crop}</span>
               ${l.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}${t('Verified')}</span>` : ''}
             </div>
-            <div class="text-xs text-muted-foreground">${l.farmer}${l.fpo ? ` · ${l.fpo}` : ''}</div>
+            <div class="text-xs text-muted-foreground">${esc(l.farmer)}${l.fpo ? ` · ${esc(l.fpo)}` : ''}</div>
             <div class="text-xs text-muted-foreground">${l.quantity} ${l.unit} · ${l.grade} · ${l.distance}</div>
           </div>
           <div class="text-right shrink-0">
@@ -2254,7 +2254,7 @@ function renderBrowseLots() {
                 <span class="font-bold">${l.crop}</span>
                 ${l.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
               </div>
-              <div class="text-xs text-muted-foreground">${l.farmer}${l.fpo ? ` · ${l.fpo}` : ''}</div>
+              <div class="text-xs text-muted-foreground">${esc(l.farmer)}${l.fpo ? ` · ${esc(l.fpo)}` : ''}</div>
             </div>
           </div>
           <div class="text-right shrink-0">
@@ -2267,7 +2267,7 @@ function renderBrowseLots() {
           <div class="bg-muted rounded-lg p-2"><div class="text-[9px] text-muted-foreground">Grade</div><div class="font-bold">${l.grade}</div></div>
           <div class="bg-muted rounded-lg p-2"><div class="text-[9px] text-muted-foreground">Distance</div><div class="font-bold">${l.distance}</div></div>
         </div>
-        <div class="text-xs text-muted-foreground mt-2">${l.location} · Harvest ${l.harvestDate}</div>
+        <div class="text-xs text-muted-foreground mt-2">${esc(l.location)} · Harvest ${esc(l.harvestDate)}</div>
         ${l.farmerLotId ? `<div class="text-[10px] font-semibold text-sky mt-1.5">${icon('trending', 'w-3 h-3 inline mr-0.5')}${t('Open for bidding — other buyers may be competing')}</div>` : ''}
         <button data-offer="${l.id}" class="w-full mt-3 bg-primary text-primary-foreground text-sm font-bold py-2.5 rounded-xl hover:opacity-90 transition">${l.farmerLotId ? t('Place Bid') : t('Make Offer')}</button>
       </div>`;
@@ -2286,7 +2286,7 @@ function renderBrowseLots() {
         openModal(`
           <div class="p-5">
             <h3 class="font-extrabold text-lg mb-1">${bidding ? 'Place a Bid' : 'Make an Offer'}</h3>
-            <p class="text-sm text-muted-foreground mb-4">${lot.crop} · ${lot.quantity} ${lot.unit} from ${lot.farmer}${bidding ? ' — visible to the farmer alongside other buyers’ bids' : ''}</p>
+            <p class="text-sm text-muted-foreground mb-4">${lot.crop} · ${lot.quantity} ${lot.unit} from ${esc(lot.farmer)}${bidding ? ' — visible to the farmer alongside other buyers’ bids' : ''}</p>
             <label class="text-xs font-bold text-muted-foreground">${bidding ? 'Your Bid Price (per quintal)' : 'Your Offer Price (per quintal)'}</label>
             <input id="offer-price" type="number" value="${lot.askingPrice}" class="w-full border border-border rounded-xl px-3 py-2.5 bg-background mt-1 mb-3" />
             <label class="text-xs font-bold text-muted-foreground">Quantity Required (${lot.unit})</label>
@@ -2345,7 +2345,7 @@ function renderMyOffers() {
         <div class="flex items-center justify-between">
           <div>
             <div class="font-bold">${o.crop} · ${o.quantity} ${o.unit}</div>
-            <div class="text-xs text-muted-foreground">${o.id} · ${o.farmer} · ${o.date}</div>
+            <div class="text-xs text-muted-foreground">${o.id} · ${esc(o.farmer)} · ${o.date}</div>
           </div>
           <span class="text-[10px] font-bold px-2 py-1 rounded-full ${offerStatusTone(o.status)}">${o.status}</span>
         </div>
@@ -2386,7 +2386,7 @@ function renderFarmerSuppliers() {
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <span class="font-bold">${s.name}</span>
+                <span class="font-bold">${esc(s.name)}</span>
                 ${s.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}Verified</span>` : `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">Unverified</span>`}
               </div>
               <div class="text-xs text-muted-foreground mt-0.5">${s.type}${s.members ? ` · ${s.members} members` : ''}</div>
@@ -2395,7 +2395,7 @@ function renderFarmerSuppliers() {
           </div>
           <div class="flex gap-1.5 flex-wrap mt-2">${s.crops.map((c) => `<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">${c}</span>`).join('')}</div>
           <div class="text-xs text-muted-foreground mt-2">Volume: <b class="text-foreground">${s.volume}</b></div>
-          <button data-view="${s.name}" class="w-full mt-3 border border-primary text-primary text-sm font-bold py-2 rounded-lg hover:bg-primary-light transition">View Their Lots</button>
+          <button data-view="${esc(s.name)}" class="w-full mt-3 border border-primary text-primary text-sm font-bold py-2 rounded-lg hover:bg-primary-light transition">View Their Lots</button>
         </div>`).join('')}
     </div>
   `);
@@ -2427,8 +2427,8 @@ function renderFpoOperatorHome() {
     <div class="relative z-10 px-4 md:px-6 pt-6 flex items-start justify-between">
       <div>
         <h1 class="font-display text-2xl font-extrabold text-white drop-shadow-md">${greet(op.name)}</h1>
-        <div class="text-xs text-white/90 font-semibold mt-0.5 drop-shadow">${op.designation} · ${F.name}</div>
-        <div class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-1 drop-shadow">${icon('pin', 'w-4 h-4')}${op.location}</div>
+        <div class="text-xs text-white/90 font-semibold mt-0.5 drop-shadow">${op.designation} · ${esc(F.name)}</div>
+        <div class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-1 drop-shadow">${icon('pin', 'w-4 h-4')}${esc(op.location)}</div>
       </div>
       <div class="text-right bg-white/85 backdrop-blur rounded-xl px-2.5 py-1.5 shadow-soft shrink-0">
         <div class="text-xl font-extrabold text-primary">${op.weather}°C</div>
@@ -2463,7 +2463,7 @@ function renderFpoOperatorHome() {
           ${cropBadge(m.crop)}
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold">${m.farmer}</span>
+              <span class="font-bold">${esc(m.farmer)}</span>
               <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${fpoLotStatusTone(m.status)}">${m.status}</span>
             </div>
             <div class="text-xs text-muted-foreground">${m.crop} · ${m.quantity} ${m.unit} · ${m.grade}</div>
@@ -2515,7 +2515,7 @@ function renderFpoMembers() {
         ${cropBadge(m.crop)}
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-bold">${m.farmer}</span>
+            <span class="font-bold">${esc(m.farmer)}</span>
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${fpoLotStatusTone(m.status)}">${m.status}</span>
           </div>
           <div class="text-xs text-muted-foreground">${m.crop} · ${m.quantity} ${m.unit} · ${m.grade}</div>
@@ -2558,9 +2558,9 @@ function renderFpoOperatorProfile() {
         <div class="flex items-center gap-3">
           <div class="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-extrabold shrink-0">${initials(op.fullName)}</div>
           <div class="flex-1 min-w-0">
-            <div class="font-extrabold text-lg">${op.fullName}</div>
-            <div class="text-xs text-muted-foreground font-semibold">${op.designation} · ${F.name}</div>
-            <div class="text-xs text-muted-foreground">${op.phone} · ${op.location}</div>
+            <div class="font-extrabold text-lg">${esc(op.fullName)}</div>
+            <div class="text-xs text-muted-foreground font-semibold">${op.designation} · ${esc(F.name)}</div>
+            <div class="text-xs text-muted-foreground">${esc(op.phone)} · ${esc(op.location)}</div>
           </div>
           <button id="edit-profile-btn" class="text-xs font-bold text-primary shrink-0 inline-flex items-center gap-1">${icon('edit', 'w-3.5 h-3.5')}${t('Edit Profile')}</button>
         </div>
@@ -2648,9 +2648,9 @@ function renderBuyerProfile() {
         <div class="flex items-center gap-3">
           <div class="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-extrabold shrink-0">${initials(B.fullName)}</div>
           <div class="min-w-0 flex-1">
-            <div class="font-extrabold text-lg">${B.fullName}</div>
-            <div class="text-xs text-muted-foreground font-semibold">${B.company}${matched ? ` · ${matched.type}` : ''}</div>
-            <div class="text-xs text-muted-foreground">${B.phone} · ${B.location}</div>
+            <div class="font-extrabold text-lg">${esc(B.fullName)}</div>
+            <div class="text-xs text-muted-foreground font-semibold">${esc(B.company)}${matched ? ` · ${matched.type}` : ''}</div>
+            <div class="text-xs text-muted-foreground">${esc(B.phone)} · ${esc(B.location)}</div>
           </div>
           <div class="flex flex-col items-end gap-1.5 shrink-0">
             ${B.verified ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-primary/10 text-primary">${icon('badgeCheck', 'w-3 h-3')}${t('Verified')}</span>` : ''}
@@ -3126,7 +3126,7 @@ function renderAssistant() {
     <div class="px-4 md:px-6" id="suggestions-wrap">
       <p class="text-xs font-bold text-muted-foreground mb-2">${t('Suggested questions:')}</p>
       <div class="flex flex-col gap-2 mb-3" id="suggestions">
-        ${suggestions.map((q) => `<button data-suggest="${q}" class="text-left text-sm border border-border rounded-xl px-3 py-2.5 hover:bg-muted transition">${t(q)}</button>`).join('')}
+        ${suggestions.map((q) => `<button data-suggest="${esc(q)}" class="text-left text-sm border border-border rounded-xl px-3 py-2.5 hover:bg-muted transition">${t(q)}</button>`).join('')}
       </div>
     </div>
     <div class="sticky bottom-16 md:bottom-0 bg-background px-4 md:px-6 py-3 border-t border-border mt-2">
@@ -3141,7 +3141,7 @@ function renderAssistant() {
   function bubble(msg) {
     const isBot = msg.role === 'bot';
     return `<div class="chat-bubble-in flex ${isBot ? 'justify-start' : 'justify-end'}">
-      <div class="max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isBot ? 'bg-primary-light text-foreground rounded-tl-sm' : 'bg-primary text-primary-foreground rounded-tr-sm'}">${msg.text}</div>
+      <div class="max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isBot ? 'bg-primary-light text-foreground rounded-tl-sm' : 'bg-primary text-primary-foreground rounded-tr-sm'}">${esc(msg.text).replace(/\n/g, '<br>')}</div>
     </div>`;
   }
 

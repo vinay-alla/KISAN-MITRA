@@ -97,3 +97,35 @@ test('every bottom/more nav link points at a real, permitted route', () => {
     }
   }
 });
+
+/* ---------- untrusted input must never become markup ---------- */
+
+const PAYLOAD = '<img src=x onerror=alert(1)>';
+
+// A raw copy of the payload in the output means some template interpolated it unescaped.
+function hostileUser(role) {
+  const u = { ...USERS[role], name: PAYLOAD, fullName: PAYLOAD, location: PAYLOAD, phone: '9' + PAYLOAD };
+  if (role === 'buyer') u.company = PAYLOAD;
+  if (role === 'fpo_operator') u.fpo = PAYLOAD;
+  if (role === 'farmer') u.fpo = PAYLOAD;
+  return u;
+}
+
+for (const role of Object.keys(USERS)) {
+  test(`${role}: markup in profile fields, chat history and grievances is escaped on every page`, () => {
+    store.set({ language: 'English' });
+    store.login(hostileUser(role));
+    store.set({
+      chat: [{ role: 'user', text: PAYLOAD }, { role: 'bot', text: PAYLOAD }],
+      lots: [{ id: 'LOT-X', crop: 'Tomato', quantity: 5, unit: 'Quintals', grade: 'Grade A', harvestDate: PAYLOAD, location: PAYLOAD, askingPrice: 1500, status: 'Open', farmer: PAYLOAD }],
+    });
+    store.addGrievance({ id: 'GR-T', ownerPhone: '9876543210', type: 'Other', description: PAYLOAD, ref: PAYLOAD, status: 'Submitted', createdAt: new Date().toISOString(), history: [] });
+    const offenders = [];
+    for (const path of allPathsFor(role)) {
+      const result = ROUTES[path] ? ROUTES[path]() : renderDynamic(path);
+      if (result && result.html.includes(PAYLOAD)) offenders.push(path);
+    }
+    assert.deepEqual(offenders, []);
+    store.resetAll();
+  });
+}
