@@ -41,9 +41,10 @@ Smallholder farmers usually sell right after harvest, under cash pressure, with 
 | | |
 |---|---|
 | **Roles** | 3 (farmer, buyer, FPO operator) with role-based route access |
-| **Screens** | 24 page renderers across 18 routes |
+| **Screens** | 25 page renderers across 19 routes |
 | **Languages** | English, हिंदी, मराठी — UI, voice input and spoken replies |
-| **Codebase** | ~4,300 lines of JavaScript, no framework, no build step |
+| **Codebase** | ~5,500 lines of JavaScript, no framework, no build step |
+| **Tests** | 120 automated tests (Node's built-in runner, zero dependencies) run on every push |
 | **Offline** | Installable PWA with a cached app shell |
 | **External services** | Open-Meteo, OpenStreetMap Nominatim, optional data.gov.in mandi feed — each degrades gracefully |
 
@@ -93,11 +94,13 @@ Smallholder farmers usually sell right after harvest, under cash pressure, with 
 - **Lots with reverse bidding** — list a lot with a photo and location, receive live bids, accept the best one.
 - **24-hour cancel window** — back out of an accepted offer before the buyer arranges pickup.
 - **Order tracking** across five stages, a digital transaction record and a **printable payment receipt**.
-- **Grievance flow** — raise a quality, payment or logistics dispute from any order.
+- **Grievance centre** — raise a quality, payment, logistics or buyer-unreachable issue (optionally tied to an order) and follow it through *Submitted → Under Review → Resolved*. Grievances persist per account; the status steps are advanced by a clearly-labelled demo button because there is no real support desk.
 - **AI visual pre-grading** — six compliance checks (colour, size, shape, visible defects, maturity, disease/pest damage) and an overall grade.
 - **Buyer verification** — a full KYC checklist and track record behind every "Verified" badge; processor offers get a full-offer check, not just the quoted price.
-- **FPO aggregation** — pool a lot with nearby farmers for stronger bargaining power.
+- **Dynamic FPO pooling** — open pooling rounds with volume price tiers. Commit quintals from your own lots; when the pool crosses a tier the price rises *for every member*, and the app shows how much extra you earn and which tier your quantity unlocked.
 - **Transport & storage** — providers sorted by real distance from the device's GPS position.
+- **Storage economics calculator** — pick a crop, quantity, facility and holding period to see whether storing beats selling today after spoilage and storage cost, with a 3/7/14/21-day comparison. Estimates assume the recent price trend continues at 40% strength and say so.
+- **Shared transport** — book a seat on a truck other farmers are filling; the trip cost is split across every quintal on board, so your per-quintal cost falls as it fills, with the saving versus hiring a vehicle alone.
 - **Weather forecast** — live conditions and a 5-day outlook from Open-Meteo.
 - **Next-season crop suggestions** — recommendations from soil type, location and the coming season (Kharif / Rabi / Zaid).
 
@@ -105,13 +108,15 @@ Smallholder farmers usually sell right after harvest, under cash pressure, with 
 Browse verified lots, place offers and bids, track their status, view verified farmers and FPOs, and manage a business profile that shows their own verification state.
 
 ### 🤝 For FPO operators
-A members-and-pooled-lots dashboard, verified buyers, and the market view.
+A members-and-pooled-lots dashboard, verified buyers, the market view and the grievance centre.
 
 ### 🌐 Across the app
 - **Trilingual** — English / हिंदी / मराठी for the interface, the voice input and the assistant's replies.
 - **Voice assistant** — speech-to-text input and text-to-speech output via the Web Speech API, with keyword-based intent detection in all three languages.
 - **Location-aware** — one-tap "use my location" with reverse geocoding.
 - **Installable PWA** — cached app shell for flaky rural connectivity.
+- **Accessible** — skip link, labelled controls, focus-trapped dialogs that restore focus, `aria-live` toasts, keyboard-operable menus and `prefers-reduced-motion` support.
+- **Resilient** — an error boundary with a *Try again / Reset saved data* page, hostile or corrupt `localStorage` is sanitised on load, and a warning appears if the browser can't save.
 
 ---
 
@@ -228,10 +233,16 @@ css/style.css      global styles, photo-backdrop and card system
 js/app.js          router, header, bottom nav, role-based access control
 js/pages.js        every page renderer and its event wiring
 js/data.js         mock datasets, nav config, crop/soil planning data
-js/store.js        localStorage-backed state
+js/logic.js        pure business logic: net returns, sell-or-hold, storage economics,
+                   pooling tiers, shared-trip costs, grievances, grading, access rules
+js/util.js         pure helpers: HTML escaping, money/number/phone formatting, distance
+js/crypto.js       PBKDF2-HMAC-SHA-256 password hashing (Web Crypto + pure-JS fallback)
+js/store.js        localStorage-backed state, with sanitising of untrusted saved data
 js/i18n.js         English / Hindi / Marathi dictionary
 js/icons.js        SVG icon set, image nav icons, logo
-js/ui.js           toast and modal helpers
+js/ui.js           toast and accessible modal helpers
+tests/             node --test suites: logic, util, crypto, store, data integrity, page rendering
+.github/workflows/ ci.yml (tests on Node 20 & 22) and pages.yml (tests gate the deploy)
 assets/            photos, icons, logo
 docs/              README banner and screenshots
 ```
@@ -245,6 +256,9 @@ docs/              README banner and screenshots
 - **Translation that can't break the UI.** `t()` falls back to the English string, so untranslated copy never renders blank.
 - **Layout gotcha handled.** Full-page photo backdrops are siblings of the animated page wrapper: a *finished* CSS transform animation still creates a containing block, which silently breaks `position: fixed` children.
 - **Honest simulation.** Where a real model would sit (grading, forecasting), the logic is rule-based, deterministic and labelled as such.
+- **Pure logic, testable in Node.** Decisions live in `logic.js` / `util.js` / `crypto.js` with no DOM access. `pages.js` can also be imported in Node behind small storage stubs, so a smoke test renders *every page × every role × every language* and fails on any `undefined`, `NaN` or `[object Object]`.
+- **Escape by default.** Templates build `innerHTML`, so every user- or API-controlled value goes through `esc()`; a test renders each page with markup in every profile field and asserts none survives unescaped.
+- **Passwords are hashed**, never stored as typed: PBKDF2-HMAC-SHA-256, 100,000 iterations, random salt. Legacy plaintext accounts are upgraded on their next login. (This protects against reading `localStorage`; it is not a substitute for server-side auth.)
 
 ---
 
@@ -255,6 +269,7 @@ docs/              README banner and screenshots
 | Language | Vanilla JavaScript (ES modules) |
 | Styling | Tailwind CSS (CDN) + a small custom stylesheet |
 | Routing / state | Hash router · `localStorage` |
+| Testing | Node's built-in test runner (`node --test`) — no dependencies |
 | Offline | Service worker (cached app shell) · web app manifest |
 | Voice | Web Speech API — `SpeechRecognition` + `speechSynthesis` |
 | Data / APIs | Open-Meteo · OpenStreetMap Nominatim · data.gov.in (optional) |
@@ -293,19 +308,30 @@ python devserver.py
 
 Without a key everything still works, and the Market page uses its built-in sample data.
 
+### Run the tests
+
+Requires Node 20+. There is nothing to install.
+
+```bash
+node --test
+```
+
+The suite covers the pure logic, the password hashing (cross-checked against Node's own crypto), state sanitising, data integrity (KYC records, PAN/GSTIN formats, every referenced asset exists, translations present) and a render smoke test across every page, role and language.
+
 ### Deploy to GitHub Pages
 
-`.github/workflows/pages.yml` publishes the static app on every push to `main`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.** Live prices are unavailable on Pages (there is no proxy), so the Market page uses sample data there.
+`.github/workflows/pages.yml` runs the tests and then publishes the static app on every push to `main`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.** Live prices are unavailable on Pages (there is no proxy), so the Market page uses sample data there.
 
 ---
 
 ## ⚠️ Known limitations
 
-- **Authentication is client-side only.** Accounts live in `localStorage` and passwords are stored unhashed. Don't use a real password; a real backend is required for production.
+- **Authentication is client-side only.** Accounts live in `localStorage`. Passwords are hashed (PBKDF2) but anyone with access to the browser profile can still tamper with the data — a real backend is required for production. Don't use a real password.
 - **All data is mock data**, stored in the browser. There is no database; the only server code is the optional price proxy.
 - **"AI" is rule-based or simulated.** Forecasts and sell-or-hold use transparent rules; quality scores are derived from the file's name and size, not from image analysis.
 - Weather and place names need an internet connection (and browser permission for location). The voice assistant depends on the browser's Web Speech API — best in Chrome.
-- No automated tests yet.
+- Pools, shared trips and grievance responses are simulated against sample data; there is no counterparty on the other side yet.
+- Storage and hold-period figures are estimates from a simple trend-continuation model, not a price forecast.
 
 ## 🛣️ Roadmap
 
@@ -317,7 +343,7 @@ Ideas for taking this beyond a prototype — none of these exist yet:
 - [ ] Direct eNAM integration and live buyer bidding
 - [ ] UPI-based payments and automated receipts
 - [ ] SMS / WhatsApp notifications for low-connectivity users
-- [ ] Automated tests and CI checks
+- [ ] Browser-level end-to-end tests (Playwright) on top of the existing Node suite
 
 ---
 
