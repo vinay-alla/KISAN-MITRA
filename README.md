@@ -44,7 +44,8 @@ Smallholder farmers usually sell right after harvest, under cash pressure, with 
 | **Screens** | 25 page renderers across 19 routes |
 | **Languages** | English, हिंदी, मराठी — UI, voice input and spoken replies |
 | **Codebase** | ~5,500 lines of JavaScript, no framework, no build step |
-| **Tests** | 120 automated tests (Node's built-in runner, zero dependencies) run on every push |
+| **Backend** | Python + SQLite REST API (stdlib only) — accounts, lots, bids, orders, pools, shared trips, notifications — documented in [docs/API.md](docs/API.md) |
+| **Tests** | 130 front-end tests (`node --test`) + 40 API tests (`unittest`), zero dependencies, run on every push |
 | **Offline** | Installable PWA with a cached app shell |
 | **External services** | Open-Meteo, OpenStreetMap Nominatim, optional data.gov.in mandi feed — each degrades gracefully |
 
@@ -109,6 +110,13 @@ Browse verified lots, place offers and bids, track their status, view verified f
 
 ### 🤝 For FPO operators
 A members-and-pooled-lots dashboard, verified buyers, the market view and the grievance centre.
+
+### 🗄️ Backend (new)
+Run `python devserver.py` and the app talks to a real server; host the static files alone (GitHub Pages) and it silently falls back to the local-first demo.
+- **Real accounts** — server-side PBKDF2 hashing, revocable signed sessions, login rate limiting, change-password / delete-account.
+- **Real marketplace** — a farmer's lot shows up for every buyer; bids reach the farmer with a notification; accepting one atomically creates the order, locks the lot, declines rival bids and notifies everyone. Order stages advance one step at a time and notify the other party.
+- **Shared state that is actually shared** — FPO pools add up *across farmers* (and stop at capacity); shared-truck seats are race-safe, so two farmers can't take the last seat.
+- **Optimistic UI, authoritative server** — actions apply instantly, are mirrored to the API in order, and the server's answer wins; the page refreshes when someone else's action changes what you're looking at.
 
 ### 🌐 Across the app
 - **Trilingual** — English / हिंदी / मराठी for the interface, the voice input and the assistant's replies.
@@ -213,13 +221,15 @@ flowchart LR
     PG --> STORE["store.js<br/>localStorage state"]
     PG --> I18N["i18n.js<br/>EN · HI · MR"]
     PG --> UI["ui.js + icons.js"]
+    PG --> REM["remote.js + api.js<br/>optimistic sync"]
     SW["sw.js<br/>offline app shell"] -.-> IDX
   end
   PG -->|"GPS · speech"| BAPI["Browser APIs"]
   PG -->|"forecast"| OM["Open-Meteo"]
   PG -->|"reverse geocode"| OSM["OpenStreetMap Nominatim"]
-  PG -->|"/api/mandi"| PX["devserver.py<br/>CORS proxy"]
-  PX -->|"API key from env"| GOV["data.gov.in<br/>eNAM / Agmarknet prices"]
+  REM -->|"REST /api/*"| SRV["server/<br/>Python + SQLite"]
+  PG -->|"/api/mandi"| SRV
+  SRV -->|"API key from env"| GOV["data.gov.in<br/>eNAM / Agmarknet prices"]
 ```
 
 ### Project structure
@@ -228,7 +238,10 @@ flowchart LR
 index.html         app shell — Tailwind CDN, fonts, service-worker registration
 manifest.json      PWA manifest
 sw.js              service worker: cached app shell; live API calls bypass the cache
-devserver.py       local static server + /api/mandi proxy
+devserver.py       launches the server: static app + REST API (python devserver.py)
+server/            backend (stdlib only): app.py router/HTTP, db.py schema, routes_*.py, security.py, seed.py
+server/tests/      API tests (real server on an ephemeral port, throw-away SQLite DB)
+scripts/           export-seed.mjs — exports catalogue data from js/data.js to server/seed.json
 css/style.css      global styles, photo-backdrop and card system
 js/app.js          router, header, bottom nav, role-based access control
 js/pages.js        every page renderer and its event wiring
@@ -237,6 +250,8 @@ js/logic.js        pure business logic: net returns, sell-or-hold, storage econo
                    pooling tiers, shared-trip costs, grievances, grading, access rules
 js/util.js         pure helpers: HTML escaping, money/number/phone formatting, distance
 js/crypto.js       PBKDF2-HMAC-SHA-256 password hashing (Web Crypto + pure-JS fallback)
+js/api.js          fetch client: backend detection, bearer token, typed errors
+js/remote.js       optimistic sync layer between the store and the API (+ offline fallbacks)
 js/store.js        localStorage-backed state, with sanitising of untrusted saved data
 js/i18n.js         English / Hindi / Marathi dictionary
 js/icons.js        SVG icon set, image nav icons, logo
@@ -273,14 +288,14 @@ docs/              README banner and screenshots
 | Offline | Service worker (cached app shell) · web app manifest |
 | Voice | Web Speech API — `SpeechRecognition` + `speechSynthesis` |
 | Data / APIs | Open-Meteo · OpenStreetMap Nominatim · data.gov.in (optional) |
-| Dev server | Python 3 standard library (`http.server`) |
+| Backend | Python 3 standard library: `http.server` + `sqlite3` (WAL), PBKDF2, HMAC-signed tokens |
 | CI / deploy | GitHub Actions → GitHub Pages |
 
 ---
 
 ## 🚀 Getting started
 
-Requires Python 3. The app uses ES modules, so it must be served over HTTP — opening `index.html` straight from disk won't work.
+Requires Python 3.10+ (nothing to `pip install`). The app uses ES modules, so it must be served over HTTP — opening `index.html` straight from disk won't work.
 
 ```bash
 git clone https://github.com/vinay-alla/KISAN-MITRA.git
@@ -288,7 +303,7 @@ cd KISAN-MITRA
 python devserver.py
 ```
 
-Open **http://127.0.0.1:8800** and use the **Try Demo … Account** buttons to explore each role.
+Open **http://127.0.0.1:8800** and use the **Try Demo … Account** buttons to explore each role. The database is created at `data/kisanmitra.db` on first run (git-ignored). To see the cross-role flow, sign a farmer up in one window and a buyer in a private window.
 
 `python devserver.py 3000` picks a custom port; `python devserver.py 8800 0.0.0.0` makes it reachable from your phone on the same network.
 
@@ -310,24 +325,27 @@ Without a key everything still works, and the Market page uses its built-in samp
 
 ### Run the tests
 
-Requires Node 20+. There is nothing to install.
+Nothing to install.
 
 ```bash
-node --test
+node --test                                           # front end (Node 20+)
+python -m unittest discover -s server/tests -t .      # API (Python 3.10+)
 ```
+
+The API suite boots a real server per test class and covers auth, validation, authorisation, the bid → order flow, pool and seat limits (including a concurrency race), static-file path traversal and production mode.
 
 The suite covers the pure logic, the password hashing (cross-checked against Node's own crypto), state sanitising, data integrity (KYC records, PAN/GSTIN formats, every referenced asset exists, translations present) and a render smoke test across every page, role and language.
 
 ### Deploy to GitHub Pages
 
-`.github/workflows/pages.yml` runs the tests and then publishes the static app on every push to `main`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.** Live prices are unavailable on Pages (there is no proxy), so the Market page uses sample data there.
+`.github/workflows/pages.yml` runs the tests and then publishes the static app on every push to `main`. Pages hosts static files only, so there the app runs in its local-first mode; to use a hosted backend instead, run `devserver.py` somewhere with `KM_CORS_ORIGIN=https://<user>.github.io` and point the page at it with `localStorage['kisanmitra:apiBase']`. One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions.** Live prices are unavailable on Pages (there is no proxy), so the Market page uses sample data there.
 
 ---
 
 ## ⚠️ Known limitations
 
-- **Authentication is client-side only.** Accounts live in `localStorage`. Passwords are hashed (PBKDF2) but anyone with access to the browser profile can still tamper with the data — a real backend is required for production. Don't use a real password.
-- **All data is mock data**, stored in the browser. There is no database; the only server code is the optional price proxy.
+- **Two modes.** With the backend, accounts and data live in SQLite and authentication is server-side. Without it (e.g. GitHub Pages), everything is local to the browser and anyone with the browser profile can read or edit it. Either way this is a prototype: no TLS, OTP, password reset or payments — see the security notes in [docs/API.md](docs/API.md).
+- **Catalogue data is sample data** (mandi prices, buyers' KYC, transport/storage providers). User-created data (accounts, lots, bids, orders, grievances, pool and seat bookings) is real in backend mode.
 - **"AI" is rule-based or simulated.** Forecasts and sell-or-hold use transparent rules; quality scores are derived from the file's name and size, not from image analysis.
 - Weather and place names need an internet connection (and browser permission for location). The voice assistant depends on the browser's Web Speech API — best in Chrome.
 - Pools, shared trips and grievance responses are simulated against sample data; there is no counterparty on the other side yet.
@@ -337,7 +355,8 @@ The suite covers the pure logic, the password hashing (cross-checked against Nod
 
 Ideas for taking this beyond a prototype — none of these exist yet:
 
-- [ ] Real backend and database (auth, lots, offers, orders) replacing `localStorage`
+- [ ] Move the backend to PostgreSQL + a production WSGI/ASGI server, add OTP login and TLS termination
+- [ ] Push notifications (WebSocket / SSE) instead of 15-second polling
 - [ ] A real vision model for grading, plus the remaining checks — surface quality, uniformity, cleanliness / foreign matter, and separate disease vs pest detection
 - [ ] Time-series price forecasting on historical Agmarknet data
 - [ ] Direct eNAM integration and live buyer bidding

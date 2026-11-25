@@ -29,6 +29,11 @@ export const DICT = {
   'Speak your question': { hi: 'अपना सवाल बोलें', mr: 'तुमचा प्रश्न बोला' },
   'Send': { hi: 'भेजें', mr: 'पाठवा' },
 
+  'List your first lot': { hi: 'अपना पहला लॉट जोड़ें', mr: 'तुमचा पहिला लॉट जोडा' },
+  'Add what you have harvested to see buyers, prices and your best net return.': { hi: 'जो उपज काटी है उसे जोड़ें और खरीदार, कीमतें व सबसे अच्छा शुद्ध रिटर्न देखें।', mr: 'काढलेले उत्पादन जोडा आणि खरेदीदार, किंमती व सर्वोत्तम निव्वळ परतावा पहा.' },
+  '🔔 Your notifications': { hi: '🔔 आपकी सूचनाएँ', mr: '🔔 तुमच्या सूचना' },
+  'No new notifications.': { hi: 'कोई नई सूचना नहीं।', mr: 'नवीन सूचना नाहीत.' },
+
   // grievances
   'Grievances': { hi: 'शिकायतें', mr: 'तक्रारी' },
   'Raise an issue with an order, payment or buyer and track it to resolution': { hi: 'ऑर्डर, भुगतान या खरीदार की समस्या दर्ज करें और समाधान तक ट्रैक करें', mr: 'ऑर्डर, पेमेंट किंवा खरेदीदाराची समस्या नोंदवा आणि निराकरणापर्यंत मागोवा घ्या' },

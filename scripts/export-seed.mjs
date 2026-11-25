@@ -11,6 +11,7 @@ export function buildSeed() {
   return {
     demoUsers: [D.DEFAULT_FARMER, D.DEFAULT_BUYER, D.DEFAULT_FPO_OPERATOR],
     demoLots: D.LOTS,
+    demoOrders: D.ORDERS,
     availableLots: D.AVAILABLE_LOTS,
     pools: D.POOLS,
     sharedTrips: D.SHARED_TRIPS,

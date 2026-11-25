@@ -5,6 +5,8 @@ import { toast, openModal, closeModal } from './ui.js';
 import { t, greet, currentLangCode } from './i18n.js';
 import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber, clamp, isValidIndianMobile, phoneKey } from './util.js';
 import { hashPassword, verifyPassword } from './crypto.js';
+import { api } from './api.js';
+import { pull as pullNow, allLots, allOrders, marketLots, livePools, liveTrips, isRemote, remoteLogin, remoteRegister, endSession } from './remote.js';
 import {
   getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
   offerCancelWindow, storageEconomics, compareHoldPeriods, poolStatus, sharedTripCost,
@@ -143,8 +145,7 @@ function trendBadge(dir) {
 }
 
 function findLot(id) {
-  const all = [...store.get().lots || [], ...D.LOTS];
-  return all.find((l) => l.id === id);
+  return allLots().find((l) => l.id === id);
 }
 
 function effectiveStatus(lot) { return store.getLotStatus(lot.id, lot.status); }
@@ -346,9 +347,37 @@ function wireLocateButton(btn, onResolved) {
 
 /* ---------------- HOME ---------------- */
 
+function renderHomeEmpty(farmer) {
+  const html = `<div class="page-photo-bg"></div>` + pageWrap(`
+    <div class="relative z-10 px-4 md:px-6 pt-6">
+      <h1 class="font-display text-2xl font-extrabold text-white drop-shadow-md">${greet(farmer.name)}</h1>
+      <div class="inline-flex items-center gap-1.5 text-white/90 text-sm font-semibold mt-0.5 drop-shadow">${icon('pin', 'w-4 h-4')}${esc(farmer.location)}</div>
+    </div>
+    <div class="px-4 md:px-6 mt-6">
+      ${card(`
+        <div class="text-center py-6">
+          <div class="mx-auto w-14 h-14 rounded-full bg-primary-light flex items-center justify-center text-primary mb-3">${icon('package', 'w-6 h-6')}</div>
+          <div class="font-extrabold text-lg">${t('List your first lot')}</div>
+          <p class="text-sm text-muted-foreground mt-1">${t('Add what you have harvested to see buyers, prices and your best net return.')}</p>
+          <a href="#/lots" class="mt-4 inline-flex items-center justify-center gap-1.5 bg-primary text-primary-foreground font-bold px-5 py-2.5 rounded-xl hover:opacity-90 transition">${icon('plus', 'w-4 h-4')}${t('Create New Lot')}</a>
+        </div>`)}
+    </div>
+    <div class="px-4 md:px-6 mt-6 flex items-center justify-between">
+      <h2 class="font-display text-lg font-extrabold text-white drop-shadow-md">${t('🔔 Market Alerts')}</h2>
+      <a href="#/market" class="text-xs font-bold text-white bg-primary/70 backdrop-blur px-2.5 py-1 rounded-full">${t('View Market')}</a>
+    </div>
+    <div class="px-4 md:px-6 mt-2 space-y-3">
+      ${D.ALERTS.slice(0, 3).map((a) => card(`<div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-sm">${a.title}</span><span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeTone(a.level)}">${a.level}</span></div><p class="text-sm text-muted-foreground mt-1">${a.desc}</p></div>`)).join('')}
+    </div>
+  `);
+  return { html };
+}
+
 function renderHome() {
   const farmer = currentFarmer();
-  const lot = findLot(D.LOTS[0].id) || D.LOTS[0];
+  const lots = allLots();
+  const lot = lots.find((l) => l.id === D.LOTS[0].id) || lots[0] || null;
+  if (!lot) return renderHomeEmpty(farmer);
   const options = getOptions(lot);
   const best = options.find((o) => o.best) || options[0];
   const status = effectiveStatus(lot);
@@ -426,7 +455,7 @@ function renderHome() {
     </div>
 
     <div class="px-4 md:px-6 mt-6 grid grid-cols-3 gap-3">
-      ${[['package', D.LOTS.length, 'Active Lots'], ['clipboard', D.ORDERS.length + store.get().orders.length, 'Orders'], ['trending', '+9%', 'Avg. Gain (FPO)']].map(([ic, v, l]) => card(`
+      ${[['package', allLots().length, 'Active Lots'], ['clipboard', allOrders().length, 'Orders'], ['trending', '+9%', 'Avg. Gain (FPO)']].map(([ic, v, l]) => card(`
         <div class="text-center">
           <div class="flex justify-center text-primary mb-1">${icon(ic, 'w-4 h-4')}</div>
           <div class="text-lg font-extrabold">${v}</div>
@@ -524,9 +553,8 @@ function renderHome() {
           const grade = m.querySelector('#el-grade').value;
           if (!(qty > 0) || qty > 100000) { m.querySelector('[data-form-error]').textContent = 'Enter a quantity between 1 and 100,000 quintals.'; m.querySelector('#el-qty').focus(); return; }
           // Demo lots live in data.js; saving copies the lot into the farmer's own list (which wins in findLot).
-          const mine = store.get().lots || [];
           const edited = { ...lot, quantity: qty, grade };
-          store.set({ lots: mine.some((l) => l.id === lot.id) ? mine.map((l) => (l.id === lot.id ? edited : l)) : [edited, ...mine] });
+          store.updateLot(edited);
           closeModal();
           toast('Lot updated', { tone: 'success', icon: 'checkCircle' });
           navigateTo('#/', true);
@@ -714,7 +742,7 @@ function renderLots() {
   function mount(root) {
     const list = root.querySelector('#lots-list');
     function render() {
-      const all = [...store.get().lots || [], ...D.LOTS];
+      const all = allLots();
       list.innerHTML = all.map(lotHtml).join('');
     }
     render();
@@ -782,7 +810,7 @@ function renderLots() {
               status: 'Recommendation Ready',
               ...(photoUrl ? { userPhoto: photoUrl } : {}),
             };
-            store.set({ lots: [newLot, ...(store.get().lots || [])] });
+            store.createLot(newLot);
             closeModal();
             toast('Lot created! Analyzing best market options…', { tone: 'success', icon: 'package' });
             render();
@@ -1091,11 +1119,6 @@ function renderOrders() {
 
   function mount(root) {
     const list = root.querySelector('#orders-list');
-    function allOrders() {
-      const map = new Map();
-      [...store.get().orders, ...D.ORDERS].forEach((o) => { if (!map.has(o.id)) map.set(o.id, o); });
-      return [...map.values()];
-    }
     function render() {
       const orders = allOrders();
       list.innerHTML = orders.length ? orders.map(orderHtml).join('') : `<p class="text-center text-muted-foreground py-10">No orders yet. Accept an offer from a lot to see it here.</p>`;
@@ -1289,12 +1312,13 @@ function renderBuyers() {
 // volume tier raises the price for everyone in the pool — that is the bargaining-power effect.
 
 // Quintals of `crop` the farmer still has on offer (their own lots, minus anything already sold).
+const CLOSED_LOT_STATUSES = ['Offer Accepted', 'Pending Pickup', 'Payment Received', 'Sold'];
 function poolableQty(crop) {
-  const lots = [...(store.get().lots || []), ...D.LOTS];
+  const lots = allLots();
   const seen = new Set();
   let total = 0;
   for (const l of lots) {
-    if (!l || seen.has(l.id) || l.crop !== crop || l.status === 'Sold') continue;
+    if (!l || seen.has(l.id) || l.crop !== crop || CLOSED_LOT_STATUSES.includes(effectiveStatus(l))) continue;
     seen.add(l.id);
     total += Math.max(0, Number(l.quantity) || 0);
   }
@@ -1355,15 +1379,15 @@ function poolsSectionHtml(joinedFpo) {
   return `
     <h3 class="font-extrabold mb-1 text-white drop-shadow-md">${t('Open pooling rounds')}</h3>
     <p class="text-xs text-white/90 drop-shadow mb-3">${t('The more quintals pooled, the higher the price the buyer pays — for every member.')}</p>
-    <div class="space-y-3" id="pools-list">${D.POOLS.map((pl) => poolCardHtml(pl, joinedFpo)).join('')}</div>`;
+    <div class="space-y-3" id="pools-list">${livePools().map((pl) => poolCardHtml(pl, joinedFpo)).join('')}</div>`;
 }
 
 function wirePools(root, joinedFpo) {
   const listEl = root.querySelector('#pools-list');
   if (!listEl) return;
-  const rerender = () => { listEl.innerHTML = D.POOLS.map((pl) => poolCardHtml(pl, joinedFpo)).join(''); wirePools(root, joinedFpo); };
+  const rerender = () => { listEl.innerHTML = livePools().map((pl) => poolCardHtml(pl, joinedFpo)).join(''); wirePools(root, joinedFpo); };
   listEl.querySelectorAll('[data-pool]').forEach((cardEl) => {
-    const pool = D.POOLS.find((x) => x.id === cardEl.dataset.pool);
+    const pool = livePools().find((x) => x.id === cardEl.dataset.pool);
     const errEl = cardEl.querySelector('[data-pool-error]');
     cardEl.querySelector('[data-pool-save]')?.addEventListener('click', () => {
       const qty = toNumber(cardEl.querySelector('[data-pool-qty]').value, 0);
@@ -1568,12 +1592,12 @@ function sharedTripsHtml() {
   const bookings = store.get().sharedTripBookings;
   return `
     ${card(`<div class="flex gap-2 text-sm">${icon('info', 'w-4 h-4 text-primary shrink-0 mt-0.5')}<span>${t('Share one truck with other farmers heading to the same mandi. The trip cost is split across every quintal on board, so your cost per quintal falls as the truck fills.')}</span></div>`, 'p-3')}
-    ${D.SHARED_TRIPS.map((trip) => sharedTripCardHtml(trip, bookings[trip.id])).join('')}`;
+    ${liveTrips().map((trip) => sharedTripCardHtml(trip, bookings[trip.id])).join('')}`;
 }
 
 function wireSharedTrips(root, rerender) {
   root.querySelectorAll('[data-trip]').forEach((cardEl) => {
-    const trip = D.SHARED_TRIPS.find((x) => x.id === cardEl.dataset.trip);
+    const trip = liveTrips().find((x) => x.id === cardEl.dataset.trip);
     const input = cardEl.querySelector('[data-trip-qty]');
     const quote = cardEl.querySelector('[data-trip-quote]');
     const bookBtn = cardEl.querySelector('[data-book-trip]');
@@ -1602,6 +1626,7 @@ function wireSharedTrips(root, rerender) {
   });
 }
 
+let logisticsTab = 'transport';
 function renderLogistics() {
   const html = `<div class="page-photo-bg" style="background-image:url('./assets/logistics-hero.jpg')"></div>` + pageWrap(`
     <div class="relative z-10 px-4 md:px-6 pt-6 pb-2">
@@ -1676,7 +1701,7 @@ function renderLogistics() {
   }
 
   function mount(root) {
-    let tab = 'transport';
+    let tab = logisticsTab;   // survives a background re-render
     let userCoords = null;
     const list = root.querySelector('#logistics-list');
     const isBooked = (type, name) => store.get().bookings.some((b) => b.type === type && b.name === name);
@@ -1746,7 +1771,7 @@ function renderLogistics() {
       }));
     }
 
-    root.querySelectorAll('.log-tab').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; styleTabs(); render(); }));
+    root.querySelectorAll('.log-tab').forEach((b) => b.addEventListener('click', () => { tab = logisticsTab = b.dataset.tab; styleTabs(); render(); }));
 
     const statusEl = root.querySelector('#logistics-locate-status');
     wireLocateButton(root.querySelector('#logistics-locate'), ({ location, lat, lon }) => {
@@ -1949,10 +1974,10 @@ function renderHistory() {
 
     if (isBuyer) {
       store.get().offers.forEach((o) => entries.push({ sort: 3, html: row('package', 'bg-primary/10 text-primary', `Offer: ${o.crop}`, `${o.lotId} · ${o.status}`, inr(o.amount), o.date) }));
-      [...store.get().orders, ...D.ORDERS].forEach((o) => entries.push({ sort: 2, html: row('truck', 'bg-accent/20 text-accent-foreground', `${o.crop} · ${o.quantity} ${o.unit}`, `${o.id} · ${D.ORDER_STAGES[o.stage]}`, inr(o.amount), o.date) }));
+      allOrders().forEach((o) => entries.push({ sort: 2, html: row('truck', 'bg-accent/20 text-accent-foreground', `${o.crop} · ${o.quantity} ${o.unit}`, `${o.id} · ${D.ORDER_STAGES[o.stage]}`, inr(o.amount), o.date) }));
     } else {
-      [...(store.get().lots || []), ...D.LOTS].forEach((l) => entries.push({ sort: 1, html: row('package', 'bg-primary/10 text-primary', `${l.crop} Lot Created`, `${l.id} · ${l.quantity} ${l.unit} · ${l.grade}`, '', l.harvestDate) }));
-      [...store.get().orders, ...D.ORDERS].forEach((o) => {
+      allLots().forEach((l) => entries.push({ sort: 1, html: row('package', 'bg-primary/10 text-primary', `${l.crop} Lot Created`, `${l.id} · ${l.quantity} ${l.unit} · ${l.grade}`, '', l.harvestDate) }));
+      allOrders().forEach((o) => {
         const paid = o.stage >= D.ORDER_STAGES.length - 1;
         entries.push({ sort: 3, html: row(paid ? 'checkCircle' : 'truck', paid ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground', `${o.crop} · ${o.quantity} ${o.unit}`, `${o.id} · ${esc(o.buyer)}`, inr(o.amount), D.ORDER_STAGES[o.stage]) });
       });
@@ -2113,7 +2138,7 @@ function renderFarmerProfile() {
     </div>
 
     <div class="px-4 md:px-6 mt-5 grid grid-cols-3 gap-3">
-      ${[[D.LOTS.length + (st.lots || []).length, 'Lots Listed'], [D.ORDERS.filter((o) => o.stage === 3).length, 'Completed Sales'], ['+9%', 'Avg. FPO Gain']].map(([v, l]) => card(`<div class="text-center"><div class="text-lg font-extrabold text-primary">${v}</div><div class="text-[10px] text-muted-foreground font-semibold mt-0.5">${t(l)}</div></div>`)).join('')}
+      ${[[allLots().length, 'Lots Listed'], [allOrders().filter((o) => o.stage >= 3).length, 'Completed Sales'], ['+9%', 'Avg. FPO Gain']].map(([v, l]) => card(`<div class="text-center"><div class="text-lg font-extrabold text-primary">${v}</div><div class="text-[10px] text-muted-foreground font-semibold mt-0.5">${t(l)}</div></div>`)).join('')}
     </div>
 
     <div class="px-4 md:px-6 mt-6">
@@ -2170,8 +2195,8 @@ function renderFarmerProfile() {
       { key: 'phone', label: 'Phone Number', value: F.phone },
       { key: 'location', label: 'Village / District', value: F.location },
     ]));
-    root.querySelector('#logout-btn').addEventListener('click', () => {
-      store.logout();
+    root.querySelector('#logout-btn').addEventListener('click', async () => {
+      await endSession();
       toast('Logged out', { icon: 'logout' });
       navigateTo('#/login', true);
     });
@@ -2185,7 +2210,7 @@ function renderFarmerProfile() {
 function renderBuyerHome() {
   const buyer = currentBuyer();
   const myOffers = store.get().offers;
-  const topLots = D.AVAILABLE_LOTS.slice(0, 3);
+  const topLots = marketLots().slice(0, 3);
   const html = `<div class="page-photo-bg"></div>` + pageWrap(`
     <div class="relative z-10 px-4 md:px-6 pt-6 flex items-start justify-between">
       <div>
@@ -2208,7 +2233,7 @@ function renderBuyerHome() {
     </div>
 
     <div class="px-4 md:px-6 mt-6 grid grid-cols-3 gap-3">
-      ${[['package', D.AVAILABLE_LOTS.length, 'Lots Available'], ['clipboard', myOffers.length, 'Offers Sent'], ['star', buyer.reliability, 'Your Rating']].map(([ic, v, l]) => card(`
+      ${[['package', marketLots().length, 'Lots Available'], ['clipboard', myOffers.length, 'Offers Sent'], ['star', buyer.reliability, 'Your Rating']].map(([ic, v, l]) => card(`
         <div class="text-center">
           <div class="flex justify-center text-primary mb-1">${icon(ic, 'w-4 h-4')}</div>
           <div class="text-lg font-extrabold">${v}</div>
@@ -2267,7 +2292,7 @@ function renderBuyerHome() {
 /* ---------------- BUYER: BROWSE LOTS ---------------- */
 
 function renderBrowseLots() {
-  const crops = ['All', ...new Set(D.AVAILABLE_LOTS.map((l) => l.crop))];
+  const crops = ['All', ...new Set(marketLots().map((l) => l.crop))];
   const filterFarmer = sessionStorage.getItem('km:browse-farmer');
   sessionStorage.removeItem('km:browse-farmer');
 
@@ -2315,10 +2340,10 @@ function renderBrowseLots() {
     let farmerFilter = filterFarmer;
     const list = root.querySelector('#lots-browse-list');
     function render() {
-      const items = D.AVAILABLE_LOTS.filter((l) => (crop === 'All' || l.crop === crop) && (!farmerFilter || l.farmer === farmerFilter || l.fpo === farmerFilter));
+      const items = marketLots().filter((l) => (crop === 'All' || l.crop === crop) && (!farmerFilter || l.farmer === farmerFilter || l.fpo === farmerFilter));
       list.innerHTML = items.map(lotHtml).join('') || `<p class="text-center text-muted-foreground py-8">No lots match your filters.</p>`;
       list.querySelectorAll('[data-offer]').forEach((btn) => btn.addEventListener('click', () => {
-        const lot = D.AVAILABLE_LOTS.find((x) => x.id === btn.dataset.offer);
+        const lot = marketLots().find((x) => x.id === btn.dataset.offer);
         const bidding = !!lot.farmerLotId;
         openModal(`
           <div class="p-5">
@@ -2394,7 +2419,9 @@ function renderMyOffers() {
           <span class="text-muted-foreground">Offer: <b class="text-foreground">${inr(o.price)}/qtl</b></span>
           <span class="font-extrabold text-primary">${inr(o.amount)}</span>
         </div>
-        ${o.status === 'Pending' ? `<button data-check="${o.id}" class="w-full mt-3 border border-primary text-primary text-sm font-bold py-2 rounded-lg hover:bg-primary-light transition">Check Farmer Response</button>` : ''}
+        ${o.status === 'Pending' ? (isRemote()
+          ? `<div class="flex gap-2 mt-3"><button data-refresh class="flex-1 border border-primary text-primary text-sm font-bold py-2 rounded-lg hover:bg-primary-light transition">Refresh status</button><button data-withdraw="${o.id}" class="flex-1 border border-border text-sm font-bold py-2 rounded-lg hover:bg-muted transition">Withdraw offer</button></div>`
+          : `<button data-check="${o.id}" class="w-full mt-3 border border-primary text-primary text-sm font-bold py-2 rounded-lg hover:bg-primary-light transition">Simulate farmer response</button>`) : ''}
       </div>`;
   }
 
@@ -2403,6 +2430,15 @@ function renderMyOffers() {
     function render() {
       const offers = store.get().offers;
       list.innerHTML = offers.length ? offers.map(offerHtml).join('') : `<p class="text-center text-muted-foreground py-10">No offers sent yet. Browse Lots to make your first offer.</p>`;
+      list.querySelectorAll('[data-refresh]').forEach((btn) => btn.addEventListener('click', async () => {
+        try { await pullNow(); toast('Status refreshed', { icon: 'checkCircle' }); } catch (e) { toast(e.message || 'Could not refresh.', { tone: 'error' }); }
+        render();
+      }));
+      list.querySelectorAll('[data-withdraw]').forEach((btn) => btn.addEventListener('click', () => {
+        store.withdrawOffer(btn.dataset.withdraw);
+        toast('Offer withdrawn', { icon: 'x' });
+        render();
+      }));
       list.querySelectorAll('[data-check]').forEach((btn) => btn.addEventListener('click', () => {
         const accepted = Math.random() > 0.3;
         store.updateOfferStatus(btn.dataset.check, accepted ? 'Accepted' : 'Declined');
@@ -2654,8 +2690,8 @@ function renderFpoOperatorProfile() {
       { key: 'phone', label: 'Phone Number', value: op.phone },
       { key: 'location', label: 'Location', value: op.location },
     ]));
-    root.querySelector('#logout-btn').addEventListener('click', () => {
-      store.logout();
+    root.querySelector('#logout-btn').addEventListener('click', async () => {
+      await endSession();
       toast('Logged out', { icon: 'logout' });
       navigateTo('#/login', true);
     });
@@ -2774,8 +2810,8 @@ function renderBuyerProfile() {
       { key: 'phone', label: 'Phone Number', value: B.phone },
       { key: 'location', label: 'Location', value: B.location },
     ]));
-    root.querySelector('#logout-btn').addEventListener('click', () => {
-      store.logout();
+    root.querySelector('#logout-btn').addEventListener('click', async () => {
+      await endSession();
       toast('Logged out', { icon: 'logout' });
       navigateTo('#/login', true);
     });
@@ -2829,7 +2865,7 @@ function renderLogin() {
             </div>
             <button id="demo-login" class="w-full border-2 border-primary/30 text-primary font-bold py-2.5 rounded-xl hover:bg-primary-light transition text-sm"></button>
           </div>
-          <p class="text-center text-xs text-white/90 font-semibold drop-shadow mt-4">${t('Prototype sign-in — account data stays in this browser only. Please don’t use a real password.')}</p>
+          <p class="text-center text-xs text-white/90 font-semibold drop-shadow mt-4">${api.online ? t('Your account is stored on the Kisan Mitra server. Passwords are hashed — but this is still a prototype, so please don’t reuse a real one.') : t('Prototype sign-in — account data stays in this browser only. Please don’t use a real password.')}</p>
           <p class="text-center text-[10px] text-white/75 font-semibold drop-shadow mt-2">${t('Prototype for SIH 2026 (Problem 26132) — prices, buyers, offers &amp; verification shown are illustrative mock data, not live transactions.')}</p>
         </div>
       </div>
@@ -2916,6 +2952,28 @@ function renderLogin() {
       demoBtn.textContent = role === 'farmer' ? 'Try Demo Farmer Account (Ramesh Patil)'
         : role === 'fpo_operator' ? 'Try Demo FPO Operator Account (Vikram Kulkarni)'
         : 'Try Demo Buyer Account (AgroFresh Exports)';
+      demoBtn.classList.toggle('hidden', api.online && !api.demoMode);   // the server has switched demo accounts off
+    }
+
+    // Sign-in against the backend: its messages are already user-ready, except the role mismatch.
+    function apiErrorText(e) {
+      if (e.code === 'role_mismatch') {
+        const label = ROLE_LABEL[e.details?.role] || e.details?.role;
+        return `This number is registered as a ${label}. Choose "${label}" above to log in.`;
+      }
+      return e.message || 'Something went wrong. Please try again.';
+    }
+    async function viaApi(action) {
+      setBusy(true);
+      try {
+        const user = await action();
+        setBusy(false);
+        toast(`Welcome, ${user.name}!`, { tone: 'success', icon: 'checkCircle' });
+        navigateTo('#/', true);
+      } catch (e) {
+        setBusy(false);
+        showError(apiErrorText(e));
+      }
     }
 
     const ROLE_LABEL = { farmer: 'Farmer', buyer: 'Buyer', fpo_operator: 'FPO Operator' };
@@ -2965,6 +3023,7 @@ function renderLogin() {
       try {
         if (mode === 'login') {
           if (!phone || !password) { showError('Enter your phone number and password.'); return; }
+          if (api.online) { await viaApi(() => remoteLogin({ phone, password, role })); return; }
           const account = store.findAccount(phone);
           if (!account) { showError('No account found with this phone number. Create one first.'); return; }
           if (account.role && account.role !== role) {
@@ -2989,7 +3048,7 @@ function renderLogin() {
         if (password.length < 6) { showError('Password must be at least 6 characters.'); return; }
         if (password.length > 128) { showError('Password must be 128 characters or fewer.'); return; }
         if (password !== password2) { showError('Passwords do not match.'); return; }
-        if (store.findAccount(phone)) { showError('An account with this phone number already exists. Log in instead.'); return; }
+        if (!api.online && store.findAccount(phone)) { showError('An account with this phone number already exists. Log in instead.'); return; }
 
         const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
         const clip = (v, max) => String(v || '').trim().slice(0, max);
@@ -2998,6 +3057,13 @@ function renderLogin() {
           : role === 'fpo_operator' ? { fpo: clip(fieldsEl.querySelector('#lf-fpo')?.value, 80) || base.fpo }
           : {};
         const weatherPatch = liveWeather != null ? { weather: liveWeather } : {};
+        if (api.online) {
+          await viaApi(() => remoteRegister({
+            role, fullName, phone, password, location, language: store.get().language, ...weatherPatch,
+            ...(role === 'buyer' ? { company: extra.company } : {}), ...(role === 'fpo_operator' ? { fpo: extra.fpo } : {}),
+          }));
+          return;
+        }
         setBusy(true);
         const passwordHash = await hashPassword(password);
         const account = { ...base, ...extra, fullName, name: fullName.split(' ')[0], phone, location, passwordHash, ...weatherPatch };
@@ -3013,6 +3079,11 @@ function renderLogin() {
 
     demoBtn.addEventListener('click', async () => {
       if (busy) return;
+      if (api.online) {
+        const b = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
+        await viaApi(() => remoteLogin({ phone: b.phone, password: 'demo123', role }));
+        return;
+      }
       try {
         setBusy(true);
         const base = role === 'farmer' ? D.DEFAULT_FARMER : role === 'fpo_operator' ? D.DEFAULT_FPO_OPERATOR : D.DEFAULT_BUYER;
@@ -3296,7 +3367,7 @@ function grievanceWhen(iso) {
 }
 function grievanceReferences() {
   const map = new Map();
-  [...store.get().orders, ...D.ORDERS].forEach((o) => { if (!map.has(o.id)) map.set(o.id, `${o.id} · ${o.crop} · ${o.buyer || ''}`.replace(/ · $/, '')); });
+  allOrders().forEach((o) => { if (!map.has(o.id)) map.set(o.id, `${o.id} · ${o.crop} · ${o.buyer || ''}`.replace(/ · $/, '')); });
   return [...map];
 }
 
@@ -3395,7 +3466,7 @@ function renderGrievances() {
         </div>
       </div>
       ${stepper(g)}
-      ${resolved ? '' : `<button data-advance="${esc(g.id)}" class="mt-3 w-full border border-dashed border-border text-xs font-bold text-muted-foreground py-2 rounded-lg hover:bg-muted transition">${t('Simulate support response')} → ${esc(t(nextGrievanceStatus(g.status)))}</button>`}
+      ${resolved || (isRemote() && !api.demoMode) ? '' : `<button data-advance="${esc(g.id)}" class="mt-3 w-full border border-dashed border-border text-xs font-bold text-muted-foreground py-2 rounded-lg hover:bg-muted transition">${t('Simulate support response')} → ${esc(t(nextGrievanceStatus(g.status)))}</button>`}
     `);
   }
 

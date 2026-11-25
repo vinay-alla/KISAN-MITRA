@@ -59,3 +59,9 @@ def seed_demo_users(db):
                     'INSERT OR IGNORE INTO lots(id, user_id, crop, quantity, unit, grade, harvest_date, location, status, created_at, updated_at)'
                     ' VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                     (lot['id'], farmer_id, lot['crop'], lot['quantity'], lot['unit'], lot['grade'], lot['harvestDate'], lot['location'], lot['status'], now, now))
+            # The demo farmer's order history (completed / in-flight sales shown on the Orders page).
+            for o in cat.get('demoOrders', []):
+                c.execute(
+                    'INSERT OR IGNORE INTO orders(id, lot_id, farmer_id, crop, quantity, unit, buyer_name, rate, amount, stage, created_at, updated_at)'
+                    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+                    (o['id'], o['lotId'], farmer_id, o['crop'], o['quantity'], o['unit'], o['buyer'], o['rate'], o['amount'], o['stage'], now, now))

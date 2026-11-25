@@ -7,7 +7,9 @@ import { ROUTES, renderDynamic, setNavigator } from './pages.js';
 import { closeModal, openModal, toast } from './ui.js';
 import { store } from './store.js';
 import { t, currentLangCode } from './i18n.js';
+import { esc } from './util.js';
 import { canAccess } from './logic.js';
+import { initRemote, isRemote, fetchNotifications, markNotificationsRead } from './remote.js';
 
 const headerEl = document.getElementById('app-header');
 const mainEl = document.getElementById('app-main');
@@ -70,7 +72,7 @@ function renderHeader(path) {
       <div class="flex items-center gap-2 shrink-0">
         <button id="bell-toggle" aria-label="Market alerts" class="relative w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
           ${iconFilled('bell', 'w-5 h-5')}
-          <span class="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-destructive"></span>
+          ${!isRemote() || store.get().remote.unread > 0 ? '<span class="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-destructive"></span>' : ''}
         </button>
         <button id="menu-toggle" aria-label="${menuOpen ? 'Close menu' : 'Open menu'}" aria-expanded="${menuOpen}" class="lg:hidden w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-muted transition">
           ${menuOpen ? icon('x', 'w-5 h-5') : iconFilled('menu', 'w-5 h-5')}
@@ -91,9 +93,28 @@ function renderHeader(path) {
     renderOverlay(currentPath());
   });
 
-  headerEl.querySelector('#bell-toggle').addEventListener('click', () => {
+  headerEl.querySelector('#bell-toggle').addEventListener('click', async () => {
+    // Real notifications (bids, accepted offers, order and grievance updates) when signed in to a backend.
+    let mine = '';
+    if (isRemote()) {
+      try {
+        const { notifications } = await fetchNotifications();
+        mine = notifications.length ? `
+          <h3 class="font-extrabold text-lg mb-3">${t('🔔 Your notifications')}</h3>
+          <div class="space-y-3 mb-5">
+            ${notifications.map((n) => `
+              <a href="${n.link && n.link.startsWith('#/') ? esc(n.link) : '#/'}" data-close class="block rounded-xl border border-border p-3 ${n.read ? '' : 'bg-primary-light'}">
+                <div class="font-bold text-sm">${esc(n.title)}</div>
+                ${n.body ? `<div class="text-xs text-muted-foreground mt-0.5">${esc(n.body)}</div>` : ''}
+                <div class="text-[10px] text-muted-foreground mt-1">${esc(new Date(n.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</div>
+              </a>`).join('')}
+          </div>` : `<p class="text-sm text-muted-foreground mb-5">${t('No new notifications.')}</p>`;
+        if (notifications.some((n) => !n.read)) markNotificationsRead().then(() => renderHeader(currentPath())).catch(() => {});
+      } catch { /* fall back to market alerts only */ }
+    }
     openModal(`
       <div class="p-5">
+        ${mine}
         <h3 class="font-extrabold text-lg mb-3">${t('🔔 Market Alerts')}</h3>
         <div class="space-y-3">
           ${ALERTS.map((a) => `
@@ -281,5 +302,15 @@ setNavigator((hash) => {
   location.hash = hash;
 });
 
+// Someone else's action (a new bid, an accepted offer, a filled pool) changed our data: refresh the
+// page, unless the user is mid-way through typing or has a dialog open.
+window.addEventListener('km:synced', () => {
+  const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+  if (typing || document.querySelector('#modal-root [role="dialog"], [role="dialog"][aria-modal="true"]')) return;
+  if (currentPath() === '/login') return;
+  render();
+});
+
 if (!location.hash) location.hash = '#/';
-render();
+// Find out whether a backend is available (and sync if we're signed in to it) before the first paint.
+initRemote().catch((e) => console.error('remote init failed', e)).finally(render);

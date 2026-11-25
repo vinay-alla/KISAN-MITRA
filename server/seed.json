@@ -70,6 +70,32 @@
       "status": "Sold"
     }
   ],
+  "demoOrders": [
+    {
+      "id": "ORD-8891",
+      "lotId": "LOT-1038",
+      "crop": "Onion",
+      "quantity": 45,
+      "unit": "Quintals",
+      "buyer": "Nashik Valley Farmers FPO",
+      "rate": 1640,
+      "amount": 73800,
+      "stage": 3,
+      "date": "2 Jun 2026"
+    },
+    {
+      "id": "ORD-8845",
+      "lotId": "LOT-1021",
+      "crop": "Wheat",
+      "quantity": 60,
+      "unit": "Quintals",
+      "buyer": "Deccan Agro Processors",
+      "rate": 2210,
+      "amount": 132600,
+      "stage": 4,
+      "date": "18 May 2026"
+    }
+  ],
   "availableLots": [
     {
       "id": "LOT-2242",
