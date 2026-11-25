@@ -5,7 +5,7 @@ import { store } from './store.js';
 
 const LANG_CODE = { English: 'en', 'हिंदी': 'hi', 'मराठी': 'mr' };
 
-const DICT = {
+export const DICT = {
   // nav
   'Home': { hi: 'होम', mr: 'मुख्यपृष्ठ' },
   'Market': { hi: 'बाज़ार', mr: 'बाजार' },

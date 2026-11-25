@@ -3,6 +3,12 @@ import * as D from './data.js';
 import { store } from './store.js';
 import { toast, openModal, closeModal } from './ui.js';
 import { t, greet, currentLangCode } from './i18n.js';
+import { esc, inr, money, initials, distanceKm, fmtKm, stateFromLocation, toNumber } from './util.js';
+import {
+  getOptions, sellOrHoldAnalysis, gradeQualityFactors, overallGradeFrom,
+  offerCancelWindow, storageEconomics, compareHoldPeriods, poolStatus, sharedTripCost,
+  validateGrievance, nextGrievanceStatus, GRIEVANCE_TYPES, GRIEVANCE_STATUSES,
+} from './logic.js';
 
 /* ---------------- helpers ---------------- */
 
@@ -16,8 +22,6 @@ function badgeTone(level) {
 function stars(rating) {
   return `<span class="inline-flex items-center gap-1 text-sm font-semibold text-foreground">${icon('star', 'w-3.5 h-3.5 fill-accent text-accent')}${rating}</span>`;
 }
-
-function inr(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 
 // Styled crop badge (replaces emoji): a real produce photo when we have one (data.js's
 // CROP_STYLE), falling back to a tinted circle with a flat line-art icon otherwise.
@@ -122,52 +126,6 @@ function findLot(id) {
 
 function effectiveStatus(lot) { return store.getLotStatus(lot.id, lot.status); }
 
-// Generates a plausible set of sell options for any lot, using commodity mandi data + buyers.
-function generateOptions(lot) {
-  const commodity = D.COMMODITIES.find((c) => c.name.toLowerCase() === lot.crop.toLowerCase());
-  if (!commodity) return [];
-  // Quality-to-buyer matching: a buyer only appears as an option if this lot's AI/manual
-  // grade meets what that buyer actually accepts (exporters want Premium only, processors
-  // will take Grade A/B, etc.) — mirrors how real buyers specify grade requirements.
-  const relevantBuyers = D.BUYERS.filter((b) => b.crops.includes(lot.crop) && (!b.preferredGrades || b.preferredGrades.includes(lot.grade)));
-  const opts = [];
-  commodity.mandis.forEach((m, i) => {
-    const distanceKm = parseInt(m.distance) || 10;
-    const transport = Math.round(distanceKm * 2.6);
-    const commission = Math.round(m.price * 0.05);
-    opts.push({
-      id: `mandi-${i}`, label: m.name, buyer: 'Open Mandi Auction', buyerId: null,
-      basePrice: m.price, transport, commission, storage: 0,
-      distance: m.distance, pickup: 'Pickup in 2 days', verified: true, reliability: 4.0,
-      reasons: ['Standard mandi auction pricing'],
-    });
-  });
-  relevantBuyers.forEach((b) => {
-    const distanceKm = parseInt(b.distance) || 8;
-    const transport = Math.round(distanceKm * 2.2);
-    const gradeBonus = lot.grade === 'Premium Quality' && b.preferredGrades?.[0] === 'Premium Quality' ? 60 : 0;
-    const base = commodity.mandis[0].price + (b.reliability >= 4.7 ? 40 : -20) + gradeBonus;
-    const commission = b.verified ? 30 : 0;
-    const reasons = [];
-    if (b.preferredGrades) reasons.push(`Matches this buyer's ${b.preferredGrades.join('/')} requirement for ${lot.crop.toLowerCase()}`);
-    reasons.push(b.verified ? 'Verified buyer with strong reliability score' : 'Buyer reliability not verified — payment risk');
-    opts.push({
-      id: `buyer-${b.id}`, label: b.name, buyer: b.name, buyerId: b.id,
-      basePrice: base, transport, commission, storage: 0,
-      distance: b.distance, pickup: b.payment, verified: b.verified, reliability: b.reliability,
-      reasons,
-    });
-  });
-  opts.forEach((o) => { o.net = o.basePrice - o.transport - o.commission - o.storage; });
-  opts.sort((a, b) => b.net - a.net);
-  opts.forEach((o, i) => { o.best = i === 0; });
-  return opts;
-}
-
-function getOptions(lot) {
-  return D.LOT_OPTIONS[lot.id] || generateOptions(lot);
-}
-
 function currentFarmer() {
   const u = store.get().user;
   return { ...D.DEFAULT_FARMER, ...(u && u.role === 'farmer' ? u : {}) };
@@ -181,10 +139,6 @@ function currentBuyer() {
 function currentFpoOperator() {
   const u = store.get().user;
   return { ...D.DEFAULT_FPO_OPERATOR, ...(u && u.role === 'fpo_operator' ? u : {}) };
-}
-
-function initials(name) {
-  return (name || '?').trim().split(/\s+/).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
 const SPEECH_LOCALE = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' };
@@ -312,17 +266,6 @@ async function getLiveLocation() {
   ]);
   return { location, weather, lat: coords.latitude, lon: coords.longitude };
 }
-
-// Great-circle distance in km between two lat/lon points — used to turn "use my location"
-// into real, sorted distances for nearby transport/storage/buyers instead of fixed labels.
-function distanceKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-function fmtKm(km) { return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`; }
 
 // Live mandi (APMC) prices, sourced from the same daily eNAM/Agmarknet arrival-and-price
 // feed that data.gov.in republishes as open government data. data.gov.in's API sends no
@@ -565,11 +508,6 @@ function renderHome() {
 
 /* ---------------- MARKET INTELLIGENCE ---------------- */
 
-function stateFromLocation(loc) {
-  const parts = (loc || '').split(',').map((s) => s.trim()).filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : 'Maharashtra';
-}
-
 function mandiRowHtml(m, i) {
   return `
     <div class="card p-3 flex items-center justify-between ${i === 0 ? 'border-primary/40' : ''}">
@@ -591,52 +529,6 @@ function liveBadgeHtml(state) {
 }
 
 /* ---------------- AI SELL-OR-HOLD ADVISOR ---------------- */
-// Rule-based model (trend momentum + forecast direction + crop perishability) that mirrors
-// how a mandi expert would reason about timing — no external AI service required, so the
-// suggestion is instant and works offline. Framed and labelled as "AI" consistent with the
-// rest of the app's AI Price Forecast copy, since it's the same kind of decision-support model.
-const PERISHABLE_CROPS = ['Tomato', 'Onion'];
-
-function sellOrHoldAnalysis(commodity, lot) {
-  const trend = commodity.trend;
-  const change3d = ((trend[6] - trend[4]) / trend[4]) * 100;
-  const change7d = ((trend[6] - trend[0]) / trend[0]) * 100;
-  const perishable = PERISHABLE_CROPS.includes(commodity.name);
-  const reasons = [];
-  let verdict, confidence;
-
-  if (commodity.forecast === 'falling') {
-    verdict = 'SELL NOW';
-    confidence = perishable ? 92 : 78;
-    reasons.push(`Prices have fallen ${Math.abs(change7d).toFixed(1)}% over the last week and the trend is still downward.`);
-    reasons.push(commodity.forecastNote);
-    if (perishable) reasons.push('Perishable crop — waiting adds storage cost and quality-loss risk on top of falling prices.');
-  } else if (commodity.forecast === 'rising') {
-    if (perishable) {
-      verdict = 'SELL SOON';
-      confidence = 74;
-      reasons.push(`Prices are up ${change3d.toFixed(1)}% in the last 3 days — a strong window to sell.`);
-      reasons.push('Perishable crop — the extra price upside rarely outweighs spoilage and quality loss beyond a few more days.');
-      reasons.push(commodity.bestWindow);
-    } else {
-      verdict = 'HOLD';
-      confidence = 81;
-      reasons.push(`Prices are up ${change3d.toFixed(1)}% in the last 3 days and still climbing.`);
-      reasons.push(commodity.forecastNote);
-      reasons.push('Low spoilage risk for this crop — safe to hold a few more days for a better price.');
-    }
-  } else {
-    verdict = perishable ? 'SELL NOW' : 'HOLD';
-    confidence = 65;
-    reasons.push('Prices are stable this week — no strong signal to wait.');
-    reasons.push(commodity.forecastNote);
-    if (!perishable) reasons.push('Low storage cost and steady demand make holding low-risk for this crop.');
-  }
-
-  if (lot && lot.quantity) reasons.push(`Based on your lot of ${lot.quantity} ${lot.unit || 'Quintals'} — reassess if quantity or grade changes.`);
-  return { verdict, confidence, change3d, change7d, reasons };
-}
-
 function sellHoldCardHtml(commodity, lot) {
   const a = sellOrHoldAnalysis(commodity, lot);
   const selling = a.verdict !== 'HOLD';
@@ -1781,40 +1673,6 @@ function renderHistory() {
 }
 
 /* ---------------- QUALITY GRADING ---------------- */
-
-// The 6 compliance checks a camera-based preliminary grading pass can realistically assess
-// from a single photo (full mandi-grade spec also covers surface/uniformity/cleanliness,
-// but those need multi-angle or lab inspection — out of scope for a phone-photo prototype).
-const QUALITY_FACTORS = [
-  { key: 'colour', label: 'Colour Compliance', icon: 'droplet', passNote: 'Uniform, deep colour typical of the variety at peak quality.', warnNote: 'Some colour variation detected — within range for most buyers, but below premium spec.' },
-  { key: 'size', label: 'Size Compliance', icon: 'sliders', passNote: 'Size falls within the standard grading bracket for this crop.', warnNote: 'Noticeable size variation across the sample — may affect premium-grade pricing.' },
-  { key: 'shape', label: 'Shape Compliance', icon: 'package', passNote: 'Regular, well-formed shape with no notable irregularities.', warnNote: 'Minor shape irregularities detected — cosmetic, unlikely to affect price much.' },
-  { key: 'defects', label: 'Visible Defect Compliance', icon: 'alert', passNote: 'No visible cuts, bruising or blemishes detected.', warnNote: 'Minor surface blemishes detected — worth a closer manual check before listing.' },
-  { key: 'maturity', label: 'Maturity / Ripeness Compliance', icon: 'clock', passNote: 'Harvested at optimal maturity for transport and shelf life.', warnNote: 'Slightly under- or over-ripe — still sellable, but sell sooner rather than hold.' },
-  { key: 'disease', label: 'Disease / Pest Damage Compliance', icon: 'bug', passNote: 'No signs of disease or pest damage detected.', warnNote: 'Possible early-stage pest or disease marks detected — inspect the full lot closely.' },
-];
-
-// Deterministic pseudo-score per factor from the file's own name+size, so the same photo
-// always grades the same way (feels real, not just re-randomised on every upload) without
-// needing an actual vision model in this prototype.
-function hashScore(str, salt) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i) + salt) % 100;
-  return Math.abs(h);
-}
-function gradeQualityFactors(file) {
-  const base = file.name + file.size;
-  return QUALITY_FACTORS.map((f, i) => {
-    const score = 70 + (hashScore(base, i * 17 + 3) % 30); // 70-99
-    return { ...f, score, status: score >= 85 ? 'pass' : 'warn' };
-  });
-}
-function overallGradeFrom(factors) {
-  const avg = factors.reduce((s, f) => s + f.score, 0) / factors.length;
-  if (avg >= 90) return 'Premium Quality';
-  if (avg >= 78) return 'Grade A';
-  return 'Grade B';
-}
 
 function qualityFactorRowHtml(f) {
   const pass = f.status === 'pass';

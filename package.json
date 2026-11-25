@@ -1,0 +1,15 @@
+{
+  "name": "kisan-mitra",
+  "version": "1.0.0",
+  "description": "Market-linkage and price-discovery prototype for farmers, buyers and FPO operators (SIH 2026, PS 26132).",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "python devserver.py",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -494,6 +494,25 @@ export const STORAGE_FACILITIES = [
   { id: 'S4', name: 'Village Community Godown', type: 'Dry Warehouse', tempRange: 'Ambient', ratePerDay: 1, capacity: '220 MT available', distance: '2 km', lat: 20.0155, lon: 73.7898, rating: 4.0, verified: false, suitableFor: ['Wheat', 'Cotton'] },
 ];
 
+/* ---------------- SHARED TRANSPORT ---------------- */
+// One vehicle, several farmers: the trip's cost is split across every quintal on board, so
+// the per-quintal price falls as the truck fills. `distanceKm` is billable km (both legs).
+export const SHARED_TRIPS = [
+  { id: 'ST1', route: 'Nashik → Lasalgaon Mandi', when: 'Tomorrow · 6:00 AM', providerId: 'T2', vehicle: 'Truck (7 tonne)', capacityQtl: 70, bookedQtl: 38, distanceKm: 70, ratePerKm: 18, soloVehicle: 'Mini Truck (3 tonne)', soloRatePerKm: 22, soloCapacityQtl: 30 },
+  { id: 'ST2', route: 'Nashik → Niphad Mandi', when: 'Thursday · 5:00 AM', providerId: 'T1', vehicle: 'Mini Truck (3 tonne)', capacityQtl: 30, bookedQtl: 12, distanceKm: 44, ratePerKm: 22, soloVehicle: 'Tractor Trolley (2 tonne)', soloRatePerKm: 15, soloCapacityQtl: 20 },
+  { id: 'ST3', route: 'Nashik → Malegaon Mandi', when: 'Friday · 4:30 AM', providerId: 'T2', vehicle: 'Truck (7 tonne)', capacityQtl: 70, bookedQtl: 20, distanceKm: 90, ratePerKm: 18, soloVehicle: 'Tempo (1.5 tonne)', soloRatePerKm: 26, soloCapacityQtl: 15 },
+];
+
+/* ---------------- FPO POOLS ---------------- */
+// Open pooling rounds. `pooledQty` is what *other* members have committed; the farmer's own
+// contribution is stored separately. Crossing a tier raises the price for the whole pool.
+export const POOLS = [
+  { id: 'P1', crop: 'Tomato', grade: 'Premium Quality', buyerId: 'B1', buyer: 'AgroFresh Exports Pvt Ltd', basePrice: 1650, targetQty: 150, pooledQty: 70, closes: 'in 3 days', tiers: [{ minQty: 100, uplift: 40 }, { minQty: 150, uplift: 90 }] },
+  { id: 'P2', crop: 'Onion', grade: 'Grade A', buyerId: 'B2', buyer: 'Nashik Valley Farmers FPO', basePrice: 1690, targetQty: 200, pooledQty: 95, closes: 'in 4 days', tiers: [{ minQty: 150, uplift: 35 }, { minQty: 200, uplift: 80 }] },
+  { id: 'P3', crop: 'Wheat', grade: 'Grade A', buyerId: 'B3', buyer: 'Deccan Agro Processors', basePrice: 2240, targetQty: 300, pooledQty: 180, closes: 'in 5 days', tiers: [{ minQty: 200, uplift: 30 }, { minQty: 300, uplift: 70 }] },
+  { id: 'P4', crop: 'Soybean', grade: 'Grade A', buyerId: 'B3', buyer: 'Deccan Agro Processors', basePrice: 4480, targetQty: 250, pooledQty: 120, closes: 'in 6 days', tiers: [{ minQty: 150, uplift: 40 }, { minQty: 250, uplift: 90 }] },
+];
+
 /* ---------------- FPO ---------------- */
 
 export const FPO_INFO = {
